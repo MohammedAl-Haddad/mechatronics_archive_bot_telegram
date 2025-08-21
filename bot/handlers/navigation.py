@@ -22,20 +22,8 @@ from ..db import (
     list_categories_for_lecture,
 )
 
-from ..keyboards import (
+from ..keyboards.constants import (
     main_menu,
-    generate_levels_keyboard,
-    generate_terms_keyboard,
-    generate_subjects_keyboard,
-    generate_term_menu_keyboard_dynamic,
-    generate_subject_sections_keyboard_dynamic,
-    generate_lecturer_filter_keyboard,
-    generate_section_filters_keyboard_dynamic,
-    generate_years_keyboard,
-    generate_lecturers_keyboard,
-    generate_lecture_titles_keyboard,
-    generate_year_category_menu_keyboard,
-    generate_lecture_category_menu_keyboard,
     TERM_MENU_SHOW_SUBJECTS,
     TERM_MENU_PLAN,
     TERM_MENU_LINKS,
@@ -50,6 +38,21 @@ from ..keyboards import (
     LIST_LECTURES_FOR_LECTURER,
     YEAR_MENU_LECTURES,
     LABEL_TO_CATEGORY,
+)
+
+from ..keyboards.builders import (
+    generate_levels_keyboard,
+    generate_terms_keyboard,
+    generate_subjects_keyboard,
+    generate_term_menu_keyboard_dynamic,
+    generate_subject_sections_keyboard_dynamic,
+    generate_lecturer_filter_keyboard,
+    generate_section_filters_keyboard_dynamic,
+    generate_years_keyboard,
+    generate_lecturers_keyboard,
+    generate_lecture_titles_keyboard,
+    generate_year_category_menu_keyboard,
+    generate_lecture_category_menu_keyboard,
 )
 
 from ..helpers import (
