@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 
 from .config import BOT_TOKEN
-from .db import init_db
+from bot.db import init_db
 from .handlers import start, echo_handler
 
 # --------------------------------------------------------------------------
