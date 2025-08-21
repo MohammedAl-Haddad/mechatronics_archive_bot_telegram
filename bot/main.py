@@ -12,7 +12,7 @@ from telegram.ext import (
     filters,
 )
 
-from .config import BOT_TOKEN
+from bot.config import BOT_TOKEN
 from bot.db import init_db
 from .handlers import start, echo_handler
 
