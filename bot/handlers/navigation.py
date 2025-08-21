@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..db import (
+from bot.db import (
     get_levels,
     get_terms_by_level,
     get_subjects_by_level_and_term,
