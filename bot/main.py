@@ -1,6 +1,6 @@
 # main.py
 # نقطة الدخول للبوت (وضع Reply Keyboard)
-# تنظير: لا تغييرات على الخوارزمية، فقط تنظيف الاستيرادات
+# يعتمد على NavigationState لإدارة حالة التنقل لكل مستخدم
 
 import os
 import asyncio
