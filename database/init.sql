@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS lecturers (
      name TEXT,
      role TEXT NOT NULL,
      permissions_mask INTEGER NOT NULL,
+     level_scope TEXT DEFAULT 'all',
      is_active INTEGER NOT NULL DEFAULT 1
  );
 

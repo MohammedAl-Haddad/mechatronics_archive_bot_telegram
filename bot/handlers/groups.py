@@ -16,6 +16,7 @@ from telegram.ext import (
 
 from bot.db import (
     is_admin,
+    MANAGE_GROUPS,
     get_or_create_level,
     get_or_create_term,
     get_group_info,
@@ -30,7 +31,7 @@ async def insert_group_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user = update.effective_user
     chat = update.effective_chat
 
-    if not await is_admin(user.id):
+    if not await is_admin(user.id, MANAGE_GROUPS):
         await message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
         return ConversationHandler.END
 

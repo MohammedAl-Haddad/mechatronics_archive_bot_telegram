@@ -40,7 +40,6 @@ from .materials import (
     list_categories_for_lecture,
 )
 from .topics import (
-    is_admin,
     get_group_id_by_chat,
     get_subject_by_name,
     get_topic_link,
@@ -50,10 +49,20 @@ from .groups import (
     get_group_info,
     upsert_group,
 )
-from .ingestions import (
+from .admins import (
+    MANAGE_GROUPS,
     UPLOAD_CONTENT,
+    PERMISSIONS,
+    list_admins,
+    get_admin,
+    add_admin,
+    update_admin,
+    remove_admin,
     get_admin_id_by_tg_user,
     get_admin_with_permissions,
+    is_admin,
+)
+from .ingestions import (
     insert_ingestion,
     attach_material,
     list_pending_ingestions,
@@ -78,9 +87,11 @@ __all__ = [
     'get_years_for_subject_section_lecturer', 'get_lecture_materials',
     'get_materials_by_category', 'list_categories_for_subject_section_year',
     'list_categories_for_lecture',
-    'is_admin', 'get_group_id_by_chat', 'get_subject_by_name', 'get_topic_link', 'upsert_topic',
+    'get_group_id_by_chat', 'get_subject_by_name', 'get_topic_link', 'upsert_topic',
     'get_group_info', 'upsert_group',
-    'UPLOAD_CONTENT', 'get_admin_id_by_tg_user', 'get_admin_with_permissions',
+    'MANAGE_GROUPS', 'UPLOAD_CONTENT', 'PERMISSIONS',
+    'list_admins', 'get_admin', 'add_admin', 'update_admin', 'remove_admin',
+    'get_admin_id_by_tg_user', 'get_admin_with_permissions', 'is_admin',
     'insert_ingestion', 'attach_material', 'list_pending_ingestions',
     'get_ingestion_material', 'update_ingestion_status', 'delete_ingestion',
     'delete_old_pending_ingestions',

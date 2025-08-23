@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..db.ingestions import (
+from ..db import (
     UPLOAD_CONTENT,
     get_admin_with_permissions,
     insert_ingestion,
@@ -12,7 +12,7 @@ from ..db.materials import (
     ensure_lecturer_id,
     insert_material,
 )
-from ..db.topics import (
+from ..db import (
     get_group_id_by_chat,
     get_topic_link,
 )

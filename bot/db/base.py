@@ -45,6 +45,7 @@ async def _migrate(db: aiosqlite.Connection) -> None:
             name TEXT,
             role TEXT NOT NULL,
             permissions_mask INTEGER NOT NULL,
+            level_scope TEXT DEFAULT 'all',
             is_active INTEGER NOT NULL DEFAULT 1
         )
         """
@@ -52,6 +53,7 @@ async def _migrate(db: aiosqlite.Connection) -> None:
     admin_cols = [
         ("role", "TEXT", "'ADMIN'"),
         ("permissions_mask", "INTEGER", "0"),
+        ("level_scope", "TEXT", "'all'"),
         ("is_active", "INTEGER", "1"),
     ]
     for col, col_type, default in admin_cols:
