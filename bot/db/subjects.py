@@ -39,6 +39,25 @@ async def insert_term(name: str):
         await db.commit()
 
 
+async def get_or_create_level(name: str) -> int:
+    level_id = await get_level_id_by_name(name)
+    if level_id is not None:
+        return level_id
+    await insert_level(name)
+    level_id = await get_level_id_by_name(name)
+    assert level_id is not None
+    return level_id
+
+
+async def get_or_create_term(name: str) -> int:
+    term_id = await get_term_id_by_name(name)
+    if term_id is not None:
+        return term_id
+    await insert_term(name)
+    term_id = await get_term_id_by_name(name)
+    assert term_id is not None
+    return term_id
+
 async def insert_subject(code: str, name: str, level_id: int, term_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(

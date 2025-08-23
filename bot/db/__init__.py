@@ -5,6 +5,8 @@ from .subjects import (
     get_term_id_by_name,
     insert_level,
     insert_term,
+    get_or_create_level,
+    get_or_create_term,
     insert_subject,
     get_terms_by_level,
     get_subjects_by_level_and_term,
@@ -59,7 +61,7 @@ from .ingestions import (
 __all__ = [
     'DB_PATH', 'init_db', 'migrate_if_needed',
     'get_levels', 'get_level_id_by_name', 'get_term_id_by_name',
-    'insert_level', 'insert_term', 'insert_subject',
+    'insert_level', 'insert_term', 'get_or_create_level', 'get_or_create_term', 'insert_subject',
     'get_terms_by_level', 'get_subjects_by_level_and_term', 'get_subject_id_by_name',
     'count_subjects', 'term_feature_flags', 'get_available_sections_for_subject',
     'get_year_id_by_name', 'get_lecturer_id_by_name', 'insert_material',

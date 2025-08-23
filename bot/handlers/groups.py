@@ -16,8 +16,8 @@ from telegram.ext import (
 
 from bot.db import (
     is_admin,
-    get_level_id_by_name,
-    get_term_id_by_name,
+    get_or_create_level,
+    get_or_create_term,
     get_group_info,
     upsert_group,
 )
@@ -68,19 +68,13 @@ async def insert_group_received(update: Update, context: ContextTypes.DEFAULT_TY
     level_name = parts[0]
     term_name = parts[1] if len(parts) > 1 else None
 
-    level_id = await get_level_id_by_name(level_name)
-    if level_id is None:
-        await update.message.reply_text("المستوى غير معروف، حاول مرة أخرى.")
-        return ASK_INPUT
+    level_id = await get_or_create_level(level_name)
 
     if term_name is None:
         await update.message.reply_text("حدد الترم أيضًا.")
         return ASK_INPUT
 
-    term_id = await get_term_id_by_name(term_name)
-    if term_id is None:
-        await update.message.reply_text("الترم غير معروف، حاول مرة أخرى.")
-        return ASK_INPUT
+    term_id = await get_or_create_term(term_name)
 
     info.update(
         {
