@@ -34,6 +34,12 @@ from .materials import (
     list_categories_for_subject_section_year,
     list_categories_for_lecture,
 )
+from .topics import (
+    is_admin,
+    get_group_id_by_chat,
+    get_subject_by_name,
+    upsert_topic,
+)
 
 __all__ = [
     'DB_PATH', 'init_db', 'migrate_if_needed',
@@ -49,4 +55,5 @@ __all__ = [
     'get_years_for_subject_section_lecturer', 'get_lecture_materials',
     'get_materials_by_category', 'list_categories_for_subject_section_year',
     'list_categories_for_lecture',
+    'is_admin', 'get_group_id_by_chat', 'get_subject_by_name', 'upsert_topic',
 ]

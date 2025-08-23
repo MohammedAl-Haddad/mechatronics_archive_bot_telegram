@@ -14,7 +14,7 @@ from telegram.ext import (
 
 from bot.config import BOT_TOKEN
 from bot.db import init_db
-from .handlers import start, echo_handler
+from .handlers import start, echo_handler, insert_sub_conv
 
 # --------------------------------------------------------------------------
 # إعداد التسجيل لرؤية الرسائل التفصيلية
@@ -44,6 +44,7 @@ def main():
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(insert_sub_conv)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_handler))
 
     print("✅ Bot is running...")
