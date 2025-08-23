@@ -28,14 +28,38 @@ async def insert_material(
     url: str | None = None,
     year_id: int | None = None,
     lecturer_id: int | None = None,
+    tg_storage_chat_id: int | None = None,
+    tg_storage_msg_id: int | None = None,
+    source_chat_id: int | None = None,
+    source_topic_id: int | None = None,
+    source_message_id: int | None = None,
+    created_by_admin_id: int | None = None,
 ):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
-            INSERT INTO materials (subject_id, section, category, title, url, year_id, lecturer_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO materials (
+                subject_id, section, category, title, url, year_id, lecturer_id,
+                tg_storage_chat_id, tg_storage_msg_id, source_chat_id,
+                source_topic_id, source_message_id, created_by_admin_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (subject_id, section, category, title, url, year_id, lecturer_id),
+            (
+                subject_id,
+                section,
+                category,
+                title,
+                url,
+                year_id,
+                lecturer_id,
+                tg_storage_chat_id,
+                tg_storage_msg_id,
+                source_chat_id,
+                source_topic_id,
+                source_message_id,
+                created_by_admin_id,
+            ),
         )
         await db.commit()
 

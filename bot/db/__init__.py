@@ -1,4 +1,4 @@
-from .base import DB_PATH, init_db
+from .base import DB_PATH, init_db, migrate_if_needed
 from .subjects import (
     get_levels,
     get_level_id_by_name,
@@ -36,7 +36,7 @@ from .materials import (
 )
 
 __all__ = [
-    'DB_PATH', 'init_db',
+    'DB_PATH', 'init_db', 'migrate_if_needed',
     'get_levels', 'get_level_id_by_name', 'get_term_id_by_name',
     'insert_level', 'insert_term', 'insert_subject',
     'get_terms_by_level', 'get_subjects_by_level_and_term', 'get_subject_id_by_name',
