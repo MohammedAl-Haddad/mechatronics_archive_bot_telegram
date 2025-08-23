@@ -1,6 +1,7 @@
 from .start import start
 from .navigation import render_state, echo_handler
 from .topics import insert_sub_conv
+from .groups import insert_group_conv
 from .ingestion import ingestion_handler
 
 __all__ = [
@@ -8,5 +9,6 @@ __all__ = [
     "render_state",
     "echo_handler",
     "insert_sub_conv",
+    "insert_group_conv",
     "ingestion_handler",
 ]

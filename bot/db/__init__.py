@@ -41,6 +41,10 @@ from .topics import (
     get_topic_link,
     upsert_topic,
 )
+from .groups import (
+    get_group_info,
+    upsert_group,
+)
 from .ingestions import (
     get_admin_id_by_tg_user,
     insert_ingestion,
@@ -62,5 +66,6 @@ __all__ = [
     'get_materials_by_category', 'list_categories_for_subject_section_year',
     'list_categories_for_lecture',
     'is_admin', 'get_group_id_by_chat', 'get_subject_by_name', 'get_topic_link', 'upsert_topic',
+    'get_group_info', 'upsert_group',
     'get_admin_id_by_tg_user', 'insert_ingestion', 'attach_material',
 ]
