@@ -55,7 +55,9 @@ CREATE TABLE IF NOT EXISTS lecturers (
 CREATE TABLE IF NOT EXISTS admins (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tg_user_id INTEGER NOT NULL UNIQUE,
-    username TEXT
+    username TEXT,
+    role TEXT NOT NULL DEFAULT 'ADMIN',
+    permissions_mask INTEGER NOT NULL DEFAULT 0
 );
 
 -- مجموعات تيليجرام التي يتم الأرشفة منها
