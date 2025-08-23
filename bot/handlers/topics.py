@@ -18,6 +18,7 @@ from bot.db import (
     is_admin,
     get_group_id_by_chat,
     get_subject_by_name,
+    get_topic_link,
     upsert_topic,
 )
 
@@ -31,6 +32,12 @@ SECTION_ALIASES = {
     "theory": "theory",
     "discussion": "discussion",
     "lab": "lab",
+}
+
+SECTION_LABELS = {
+    "theory": "نظري",
+    "discussion": "مناقشة",
+    "lab": "عملي",
 }
 
 
@@ -51,13 +58,35 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if group_id is None:
         await message.reply_text("المجموعة غير مسجلة. استخدم /insert_group أولًا.")
         return ConversationHandler.END
+    thread_id = message.message_thread_id
 
     context.user_data["insert_sub"] = {
         "group_id": group_id,
-        "thread_id": message.message_thread_id,
+        "thread_id": thread_id,
         "cmd_msg_id": message.message_id,
         "chat_id": chat.id,
     }
+
+    existing = await get_topic_link(group_id, thread_id)
+    if existing:
+        subject_id, subject_name, section = existing
+        context.user_data["insert_sub"].update(
+            {"subject_id": subject_id, "subject_name": subject_name, "section": section}
+        )
+        buttons = [[
+            InlineKeyboardButton("تعديل", callback_data="insub_edit"),
+            InlineKeyboardButton("إلغاء", callback_data="insub_cancel"),
+        ]]
+        reply = (
+            f"الموضوع مرتبط حاليًا بـ:\n"
+            f"المادة: {subject_name}\n"
+            f"القسم: {SECTION_LABELS.get(section, section)}"
+        )
+        sent = await message.reply_text(
+            reply, reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        context.user_data["insert_sub"]["confirm_msg_id"] = sent.message_id
+        return CONFIRM
 
     await message.reply_text("أرسل اسم المادة متبوعًا بالقسم (مثال: فيزياء - نظري)")
     return ASK_INPUT

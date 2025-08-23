@@ -38,6 +38,7 @@ from .topics import (
     is_admin,
     get_group_id_by_chat,
     get_subject_by_name,
+    get_topic_link,
     upsert_topic,
 )
 from .ingestions import (
@@ -60,6 +61,6 @@ __all__ = [
     'get_years_for_subject_section_lecturer', 'get_lecture_materials',
     'get_materials_by_category', 'list_categories_for_subject_section_year',
     'list_categories_for_lecture',
-    'is_admin', 'get_group_id_by_chat', 'get_subject_by_name', 'upsert_topic',
+    'is_admin', 'get_group_id_by_chat', 'get_subject_by_name', 'get_topic_link', 'upsert_topic',
     'get_admin_id_by_tg_user', 'insert_ingestion', 'attach_material',
 ]

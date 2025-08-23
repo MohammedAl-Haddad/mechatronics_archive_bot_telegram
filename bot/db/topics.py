@@ -29,6 +29,28 @@ async def get_subject_by_name(name: str) -> tuple[int, str] | None:
         return (row[0], row[1]) if row else None
 
 
+async def get_topic_link(
+    group_id: int, tg_topic_id: int
+) -> tuple[int, str, str] | None:
+    """Return existing topic linkage if present.
+
+    Returns a tuple of (subject_id, subject_name, section)
+    or ``None`` if the topic is not linked yet.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            """
+            SELECT t.subject_id, s.name, t.section
+            FROM topics t
+            JOIN subjects s ON s.id = t.subject_id
+            WHERE t.group_id=? AND t.tg_topic_id=?
+            """,
+            (group_id, tg_topic_id),
+        )
+        row = await cur.fetchone()
+        return (row[0], row[1], row[2]) if row else None
+
+
 async def upsert_topic(
     group_id: int, tg_topic_id: int, subject_id: int, section: str
 ) -> None:
@@ -50,5 +72,6 @@ __all__ = [
     "is_admin",
     "get_group_id_by_chat",
     "get_subject_by_name",
+    "get_topic_link",
     "upsert_topic",
 ]
