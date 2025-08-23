@@ -53,6 +53,7 @@ from .ingestions import (
     list_pending_ingestions,
     update_ingestion_status,
     delete_ingestion,
+    delete_old_pending_ingestions,
 )
 
 __all__ = [
@@ -73,4 +74,5 @@ __all__ = [
     'get_group_info', 'upsert_group',
     'get_admin_id_by_tg_user', 'insert_ingestion', 'attach_material',
     'list_pending_ingestions', 'update_ingestion_status', 'delete_ingestion',
+    'delete_old_pending_ingestions',
 ]

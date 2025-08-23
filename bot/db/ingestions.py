@@ -68,6 +68,19 @@ async def delete_ingestion(ingestion_id: int) -> None:
         await db.commit()
 
 
+async def delete_old_pending_ingestions(hours: int = 24) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            """
+            DELETE FROM ingestions
+            WHERE status='pending' AND created_at < datetime('now', ?)
+            """,
+            (f'-{hours} hours',),
+        )
+        await db.commit()
+        return cur.rowcount
+
+
 __all__ = [
     "get_admin_id_by_tg_user",
     "insert_ingestion",
@@ -75,5 +88,6 @@ __all__ = [
     "list_pending_ingestions",
     "update_ingestion_status",
     "delete_ingestion",
+    "delete_old_pending_ingestions",
 ]
 

@@ -22,7 +22,10 @@ from .handlers import (
     insert_group_conv,
     approvals_handler,
     approval_callback,
+    moderation_handler,
 )
+from .jobs import purge_temp_archives
+from datetime import time
 
 # --------------------------------------------------------------------------
 # إعداد التسجيل لرؤية الرسائل التفصيلية
@@ -57,10 +60,16 @@ def main():
     app.add_handler(approvals_handler)
     app.add_handler(approval_callback)
     app.add_handler(
+        MessageHandler(filters.ALL & filters.ChatType.GROUPS, moderation_handler),
+        group=-1,
+    )
+    app.add_handler(
         MessageHandler(filters.Entity("hashtag"), ingestion_handler),
         group=1,
     )
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_handler))
+
+    app.job_queue.run_daily(purge_temp_archives, time=time(hour=0, minute=0))
 
     print("✅ Bot is running...")
     app.run_polling()
