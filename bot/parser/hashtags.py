@@ -40,6 +40,13 @@ CATEGORY_ALIASES: dict[str, set[str]] = {
     "booklet": {"booklet", "مذكرة", "مذكرات"},
     "summary": {"summary", "ملخص", "ملخصات"},
     "notes": {"notes", "ملاحظات", "نوته"},
+    "board_images": {"صور_السبورة", "board", "board_images"},
+    "related": {"ملف_ذو_صلة", "related"},
+    # Additional categories supported by the database
+    "external_link": {"external_link"},
+    "simulation": {"simulation"},
+    "mind_map": {"mind_map"},
+    "transcript": {"transcript"},
 }
 
 
@@ -53,6 +60,17 @@ def resolve_category(tag: str) -> str | None:
 
 
 _YEAR_RE = re.compile(r"^\d{4}(?:-\d{4})?$")
+
+LECTURER_PREFIXES: tuple[str, ...] = (
+    "الدكتور_",
+    "الدكتورة_",
+    "الأستاذ_",
+    "الأستاذة_",
+    "م_",
+    "م",
+    "مهندس_",
+    "مهندسة_",
+)
 
 
 def parse_hashtags(tags: Iterable[str]) -> dict[str, str | None]:
@@ -75,6 +93,12 @@ def parse_hashtags(tags: Iterable[str]) -> dict[str, str | None]:
         if not norm:
             continue
 
+        # Support ``category:title`` syntax
+        if ":" in norm:
+            norm, title = norm.split(":", 1)
+            if not result["title"]:
+                result["title"] = title.replace("_", " ")
+
         if result["category"] is None:
             cat = resolve_category(norm)
             if cat:
@@ -85,12 +109,20 @@ def parse_hashtags(tags: Iterable[str]) -> dict[str, str | None]:
             result["year"] = norm
             continue
 
-        leftovers.append(norm)
+        if result["lecturer"] is None:
+            for prefix in LECTURER_PREFIXES:
+                if norm.startswith(prefix):
+                    name = norm[len(prefix) :].replace("_", " ").strip()
+                    if name:
+                        result["lecturer"] = name
+                        break
+            else:
+                leftovers.append(norm)
+        else:
+            leftovers.append(norm)
 
-    if leftovers:
-        result["lecturer"] = leftovers.pop(0).replace("_", " ")
-        if leftovers:
-            result["title"] = " ".join(t.replace("_", " ") for t in leftovers)
+    if leftovers and not result["title"]:
+        result["title"] = " ".join(t.replace("_", " ") for t in leftovers)
 
     return result
 
