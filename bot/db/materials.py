@@ -36,7 +36,7 @@ async def insert_material(
     created_by_admin_id: int | None = None,
 ):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
+        cur = await db.execute(
             """
             INSERT INTO materials (
                 subject_id, section, category, title, url, year_id, lecturer_id,
@@ -62,6 +62,7 @@ async def insert_material(
             ),
         )
         await db.commit()
+        return cur.lastrowid
 
 
 async def insert_year(name: str):
