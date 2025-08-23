@@ -61,7 +61,11 @@ CREATE TABLE IF NOT EXISTS lecturers (
 CREATE TABLE IF NOT EXISTS groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tg_chat_id INTEGER UNIQUE NOT NULL,
-    title TEXT
+    title TEXT,
+    level_id INTEGER,
+    term_id INTEGER,
+    FOREIGN KEY (level_id) REFERENCES levels(id),
+    FOREIGN KEY (term_id) REFERENCES terms(id)
 );
 
 -- المواضيع داخل المجموعات

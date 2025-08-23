@@ -64,10 +64,18 @@ async def _migrate(db: aiosqlite.Connection) -> None:
         CREATE TABLE IF NOT EXISTS groups (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tg_chat_id INTEGER UNIQUE NOT NULL,
-            title TEXT
+            title TEXT,
+            level_id INTEGER,
+            term_id INTEGER,
+            FOREIGN KEY (level_id) REFERENCES levels(id),
+            FOREIGN KEY (term_id) REFERENCES terms(id)
         )
         """
     )
+    group_cols = [("level_id", "INTEGER"), ("term_id", "INTEGER")]
+    for col, col_type in group_cols:
+        if not await _column_exists(db, "groups", col):
+            await db.execute(f"ALTER TABLE groups ADD COLUMN {col} {col_type}")
     await db.execute(
         """
         CREATE TABLE IF NOT EXISTS topics (
