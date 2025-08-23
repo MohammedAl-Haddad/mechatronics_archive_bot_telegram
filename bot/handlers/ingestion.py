@@ -65,17 +65,22 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     subject_id, _, section = topic_link
 
     info = parse_hashtags(tags)
-    category = info.get("category")
-    title = info.get("title")
-    if not category or not title:
+    category = info["category"]
+    title = info["title"]
+    lecturer_name = info["lecturer"]
+
+    # ``board_images`` is one of the supported categories and relies on the
+    # extracted title (either from ``category:title`` syntax or remaining
+    # hashtags) to identify the lecture it belongs to.
+    if category is None or title is None:
         return
 
     year_id = None
-    if info.get("year"):
+    if info["year"]:
         year_id = await ensure_year_id(info["year"])
     lecturer_id = None
-    if info.get("lecturer"):
-        lecturer_id = await ensure_lecturer_id(info["lecturer"])
+    if lecturer_name:
+        lecturer_id = await ensure_lecturer_id(lecturer_name)
 
     material_id = await insert_material(
         subject_id,
