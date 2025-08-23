@@ -21,6 +21,7 @@ async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not pending:
         await update.message.reply_text("لا توجد رسائل معلقة.")
         return
+    await update.message.reply_text("الرسائل المعلقة:")
     for ingestion_id, chat_id, msg_id in pending:
         buttons = [[
             InlineKeyboardButton("Approve", callback_data=f"appr:{ingestion_id}"),
@@ -56,8 +57,18 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         await update_material_storage(material_id, ARCHIVE_CHANNEL_ID, copied.message_id)
         await update_ingestion_status(ingestion_id, "approved")
+        await context.bot.send_message(
+            chat_id=src_chat_id,
+            text=f"تمت الموافقة على طلبك رقم {ingestion_id}",
+            reply_to_message_id=src_msg_id,
+        )
     else:
         await update_ingestion_status(ingestion_id, "rejected")
+        await context.bot.send_message(
+            chat_id=src_chat_id,
+            text=f"تم رفض طلبك رقم {ingestion_id}",
+            reply_to_message_id=src_msg_id,
+        )
     await query.edit_message_reply_markup(reply_markup=None)
 
 
