@@ -19,6 +19,8 @@ def _to_int(env_key: str) -> int | None:
 
 
 ARCHIVE_CHANNEL_ID = _to_int("ARCHIVE_CHANNEL_ID")
+if ARCHIVE_CHANNEL_ID is None:
+    raise RuntimeError("ARCHIVE_CHANNEL_ID is missing in .env")
 GROUP_ID = _to_int("GROUP_ID")
 
 _admin = os.getenv("ADMIN_USER_IDS", "")

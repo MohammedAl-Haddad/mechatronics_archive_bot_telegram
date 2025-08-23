@@ -65,6 +65,17 @@ async def insert_material(
         return cur.lastrowid
 
 
+async def update_material_storage(
+    material_id: int, chat_id: int, msg_id: int
+):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE materials SET tg_storage_chat_id=?, tg_storage_msg_id=? WHERE id=?",
+            (chat_id, msg_id, material_id),
+        )
+        await db.commit()
+
+
 async def insert_year(name: str):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("INSERT OR IGNORE INTO years (name) VALUES (?)", (name,))
