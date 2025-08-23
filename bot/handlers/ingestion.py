@@ -126,7 +126,7 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     ingestion_id = await insert_ingestion(message.message_id, admin_id)
     await attach_material(ingestion_id, material_id, "pending")
-    await message.reply_text(f"⏳ {ingestion_id}")
+    await message.reply_text(f"تم تسجيل العملية برقم {ingestion_id}")
 
 
 __all__ = ["ingestion_handler"]
