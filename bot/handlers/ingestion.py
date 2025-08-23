@@ -1,6 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from ..config import ARCHIVE_CHANNEL_ID
+
 from ..db.ingestions import (
     get_admin_id_by_tg_user,
     insert_ingestion,
@@ -10,6 +12,7 @@ from ..db.materials import (
     ensure_year_id,
     ensure_lecturer_id,
     insert_material,
+    update_material_storage,
 )
 from ..db.topics import (
     is_admin,
@@ -88,6 +91,12 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     ingestion_id = await insert_ingestion(message.message_id, admin_id, "pending")
     await attach_material(ingestion_id, material_id, "approved")
+    copied = await context.bot.copy_message(
+        chat_id=ARCHIVE_CHANNEL_ID,
+        from_chat_id=chat.id,
+        message_id=message.message_id,
+    )
+    await update_material_storage(material_id, ARCHIVE_CHANNEL_ID, copied.message_id)
     await message.reply_text(f"✅ {ingestion_id}")
 
 
