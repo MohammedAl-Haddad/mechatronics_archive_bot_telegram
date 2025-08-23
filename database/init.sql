@@ -27,6 +27,13 @@ CREATE TABLE IF NOT EXISTS subjects (
     name TEXT NOT NULL,
     level_id INTEGER NOT NULL,
     term_id INTEGER NOT NULL,
+    sections_mode TEXT NOT NULL DEFAULT 'theory_only' CHECK(
+        sections_mode IN (
+            'theory_only',
+            'theory_discussion',
+            'theory_discussion_lab'
+        )
+    ),
     FOREIGN KEY (level_id) REFERENCES levels(id),
     FOREIGN KEY (term_id) REFERENCES terms(id)
 );
@@ -44,6 +51,28 @@ CREATE TABLE IF NOT EXISTS lecturers (
     role TEXT CHECK(role IN ('lecturer','ta','lab')) DEFAULT 'lecturer'
 );
 
+-- مستخدمون بامتيازات إدارية
+CREATE TABLE IF NOT EXISTS admins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tg_user_id INTEGER NOT NULL UNIQUE,
+    username TEXT
+);
+
+-- مجموعات تيليجرام التي يتم الأرشفة منها
+CREATE TABLE IF NOT EXISTS groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tg_chat_id INTEGER NOT NULL UNIQUE,
+    title TEXT
+);
+
+CREATE TABLE IF NOT EXISTS topics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    tg_topic_id INTEGER NOT NULL,
+    title TEXT,
+    FOREIGN KEY (group_id) REFERENCES groups(id)
+);
+
 -- مواد تعليمية مرتبطة بالمادة + القسم + تصنيف المحتوى
 CREATE TABLE IF NOT EXISTS materials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,9 +88,35 @@ CREATE TABLE IF NOT EXISTS materials (
     url TEXT,                 -- رابط تيليجرام/جوجل درايف/يوتيوب ... الخ
     year_id INTEGER,          -- اختياري
     lecturer_id INTEGER,      -- اختياري
+    tg_storage_chat_id INTEGER,
+    tg_storage_msg_id INTEGER,
+    source_chat_id INTEGER,
+    source_topic_id INTEGER,
+    source_message_id INTEGER,
+    created_by_admin_id INTEGER,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (subject_id) REFERENCES subjects(id),
     FOREIGN KEY (year_id) REFERENCES years(id),
-    FOREIGN KEY (lecturer_id) REFERENCES lecturers(id)
+    FOREIGN KEY (lecturer_id) REFERENCES lecturers(id),
+    FOREIGN KEY (created_by_admin_id) REFERENCES admins(id)
 );
+
+-- عمليات الاستيراد أو المعالجة الخلفية
+CREATE TABLE IF NOT EXISTS ingestions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    material_id INTEGER,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials(id)
+);
+
+-- فهارس لتحسين الاستعلامات
+CREATE INDEX IF NOT EXISTS idx_materials_core
+    ON materials(subject_id, section, year_id, category);
+CREATE INDEX IF NOT EXISTS idx_materials_storage
+    ON materials(tg_storage_chat_id, tg_storage_msg_id);
+CREATE INDEX IF NOT EXISTS idx_topics_chat
+    ON topics(group_id, tg_topic_id);
+CREATE INDEX IF NOT EXISTS idx_ingestions_status
+    ON ingestions(status, created_at);
 
