@@ -93,11 +93,19 @@ async def _migrate(db: aiosqlite.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             material_id INTEGER,
             status TEXT NOT NULL,
+            tg_message_id INTEGER,
+            admin_id INTEGER,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (material_id) REFERENCES materials(id)
+            FOREIGN KEY (material_id) REFERENCES materials(id),
+            FOREIGN KEY (admin_id) REFERENCES admins(id)
         )
         """
     )
+
+    ingestion_cols = [("tg_message_id", "INTEGER"), ("admin_id", "INTEGER")]
+    for col, col_type in ingestion_cols:
+        if not await _column_exists(db, "ingestions", col):
+            await db.execute(f"ALTER TABLE ingestions ADD COLUMN {col} {col_type}")
 
     # indexes
     await db.execute(

@@ -84,8 +84,11 @@ CREATE TABLE IF NOT EXISTS ingestions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     material_id INTEGER,
     status TEXT NOT NULL,
+    tg_message_id INTEGER,
+    admin_id INTEGER,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (material_id) REFERENCES materials(id)
+    FOREIGN KEY (material_id) REFERENCES materials(id),
+    FOREIGN KEY (admin_id) REFERENCES admins(id)
 );
 
 -- مواد تعليمية مرتبطة بالمادة + القسم + تصنيف المحتوى

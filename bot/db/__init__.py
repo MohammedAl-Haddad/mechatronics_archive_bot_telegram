@@ -40,6 +40,11 @@ from .topics import (
     get_subject_by_name,
     upsert_topic,
 )
+from .ingestions import (
+    get_admin_id_by_tg_user,
+    insert_ingestion,
+    attach_material,
+)
 
 __all__ = [
     'DB_PATH', 'init_db', 'migrate_if_needed',
@@ -56,4 +61,5 @@ __all__ = [
     'get_materials_by_category', 'list_categories_for_subject_section_year',
     'list_categories_for_lecture',
     'is_admin', 'get_group_id_by_chat', 'get_subject_by_name', 'upsert_topic',
+    'get_admin_id_by_tg_user', 'insert_ingestion', 'attach_material',
 ]
