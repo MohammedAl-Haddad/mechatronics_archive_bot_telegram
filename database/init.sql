@@ -48,11 +48,14 @@ CREATE TABLE IF NOT EXISTS lecturers (
 );
 
 -- حسابات إدارية
-CREATE TABLE IF NOT EXISTS admins (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tg_user_id INTEGER UNIQUE,
-    name TEXT
-);
+ CREATE TABLE IF NOT EXISTS admins (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     tg_user_id INTEGER UNIQUE,
+     name TEXT,
+     role TEXT NOT NULL,
+     permissions_mask INTEGER NOT NULL,
+     is_active INTEGER NOT NULL DEFAULT 1
+ );
 
 -- مجموعات تيليجرام
 CREATE TABLE IF NOT EXISTS groups (

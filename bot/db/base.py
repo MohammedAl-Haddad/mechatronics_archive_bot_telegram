@@ -42,10 +42,23 @@ async def _migrate(db: aiosqlite.Connection) -> None:
         CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tg_user_id INTEGER UNIQUE,
-            name TEXT
+            name TEXT,
+            role TEXT NOT NULL,
+            permissions_mask INTEGER NOT NULL,
+            is_active INTEGER NOT NULL DEFAULT 1
         )
         """
     )
+    admin_cols = [
+        ("role", "TEXT", "'ADMIN'"),
+        ("permissions_mask", "INTEGER", "0"),
+        ("is_active", "INTEGER", "1"),
+    ]
+    for col, col_type, default in admin_cols:
+        if not await _column_exists(db, "admins", col):
+            await db.execute(
+                f"ALTER TABLE admins ADD COLUMN {col} {col_type} DEFAULT {default}"
+            )
     await db.execute(
         """
         CREATE TABLE IF NOT EXISTS groups (
