@@ -4,6 +4,7 @@ from .topics import insert_sub_conv
 from .groups import insert_group_conv
 from .ingestion import ingestion_handler
 from .approvals import approvals_handler, approval_callback
+from .moderation import moderation_handler
 
 __all__ = [
     "start",
@@ -14,4 +15,5 @@ __all__ = [
     "ingestion_handler",
     "approvals_handler",
     "approval_callback",
+    "moderation_handler",
 ]
