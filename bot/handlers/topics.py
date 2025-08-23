@@ -49,6 +49,10 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
 
+    if chat.type != "supergroup":
+        await message.reply_text("استخدم هذا الأمر داخل مجموعة خارقة.")
+        return ConversationHandler.END
+
     if not message or message.message_thread_id is None:
         await message.reply_text("استخدم هذا الأمر داخل موضوع ضمن مجموعة.")
         return ConversationHandler.END
@@ -247,7 +251,7 @@ async def insert_sub_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 insert_sub_conv = ConversationHandler(
-    entry_points=[CommandHandler("insert_sub", insert_sub_start)],
+    entry_points=[CommandHandler("insert_sub", insert_sub_start, filters.ChatType.GROUPS)],
     states={
         ASK_INPUT: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, insert_sub_received)

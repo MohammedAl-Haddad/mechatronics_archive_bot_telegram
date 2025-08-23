@@ -31,6 +31,10 @@ async def insert_group_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user = update.effective_user
     chat = update.effective_chat
 
+    if chat.type != "supergroup":
+        await message.reply_text("استخدم هذا الأمر داخل مجموعة خارقة.")
+        return ConversationHandler.END
+
     if not await is_admin(user.id, MANAGE_GROUPS):
         await message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
         return ConversationHandler.END
@@ -150,7 +154,7 @@ async def insert_group_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 insert_group_conv = ConversationHandler(
-    entry_points=[CommandHandler("insert_group", insert_group_start)],
+    entry_points=[CommandHandler("insert_group", insert_group_start, filters.ChatType.GROUPS)],
     states={
         ASK_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, insert_group_received)],
         CONFIRM: [CallbackQueryHandler(insert_group_confirm, pattern="^ingrp_")],
