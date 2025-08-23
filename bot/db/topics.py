@@ -1,6 +1,12 @@
+import os
+
 import aiosqlite
 
+from bot.config import ADMIN_USER_IDS  # loads environment variables
 from .base import DB_PATH
+
+_owner = os.getenv("OWNER_TG_ID")
+OWNER_TG_ID = int(_owner) if _owner and _owner.strip().isdigit() else None
 
 
 async def is_admin(tg_user_id: int) -> bool:
@@ -8,7 +14,12 @@ async def is_admin(tg_user_id: int) -> bool:
         cur = await db.execute(
             "SELECT 1 FROM admins WHERE tg_user_id=? AND is_active=1", (tg_user_id,)
         )
-        return (await cur.fetchone()) is not None
+        if (await cur.fetchone()) is not None:
+            return True
+
+    if OWNER_TG_ID is not None and tg_user_id == OWNER_TG_ID:
+        return True
+    return tg_user_id in ADMIN_USER_IDS
 
 
 async def get_group_id_by_chat(tg_chat_id: int) -> int | None:
