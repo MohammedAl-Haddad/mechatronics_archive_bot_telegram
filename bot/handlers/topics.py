@@ -17,8 +17,11 @@ from telegram.ext import (
 from bot.db import (
     is_admin,
     get_group_id_by_chat,
+    get_group_info,
     get_subject_by_name,
     get_topic_link,
+    insert_subject,
+    update_subject_mode,
     upsert_topic,
 )
 
@@ -58,6 +61,12 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if group_id is None:
         await message.reply_text("المجموعة غير مسجلة. استخدم /insert_group أولًا.")
         return ConversationHandler.END
+
+    group_info = await get_group_info(chat.id)
+    if group_info is None:
+        await message.reply_text("المجموعة غير مسجلة. استخدم /insert_group أولًا.")
+        return ConversationHandler.END
+    level_id, term_id = group_info
     thread_id = message.message_thread_id
 
     context.user_data["insert_sub"] = {
@@ -65,6 +74,8 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "thread_id": thread_id,
         "cmd_msg_id": message.message_id,
         "chat_id": chat.id,
+        "level_id": level_id,
+        "term_id": term_id,
     }
 
     existing = await get_topic_link(group_id, thread_id)
@@ -104,14 +115,6 @@ async def insert_sub_received(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     row = await get_subject_by_name(subj_name)
     if row is None:
-        await update.message.reply_text("المادة غير موجودة، حاول مرة أخرى.")
-        return ASK_INPUT
-
-    subject_id, mode = row
-    section = "theory"
-    if mode == "theory_only":
-        sect_label = "نظري"
-    else:
         if sect_label is None:
             await update.message.reply_text("حدد القسم أيضًا (نظري/مناقشة/عملي).")
             return ASK_INPUT
@@ -119,9 +122,54 @@ async def insert_sub_received(update: Update, context: ContextTypes.DEFAULT_TYPE
         if section is None:
             await update.message.reply_text("القسم غير معروف، استخدم: نظري، مناقشة، عملي.")
             return ASK_INPUT
-        if mode == "theory_discussion" and section == "lab":
-            await update.message.reply_text("هذا المقرر لا يحتوي على قسم عملي.")
-            return ASK_INPUT
+        mode = "theory_only"
+        if section == "discussion":
+            mode = "theory_discussion"
+        elif section == "lab":
+            mode = "theory_discussion_lab"
+        await insert_subject(
+            "AUTO", subj_name, info["level_id"], info["term_id"], sections_mode=mode
+        )
+        row = await get_subject_by_name(subj_name)
+        assert row is not None
+        subject_id, _ = row
+    else:
+        subject_id, mode = row
+        if mode == "theory_only":
+            if sect_label is None:
+                sect_label = "نظري"
+                section = "theory"
+            else:
+                section = SECTION_ALIASES.get(sect_label.lower())
+                if section is None:
+                    await update.message.reply_text(
+                        "القسم غير معروف، استخدم: نظري، مناقشة، عملي."
+                    )
+                    return ASK_INPUT
+                if section != "theory":
+                    new_mode = (
+                        "theory_discussion" if section == "discussion" else "theory_discussion_lab"
+                    )
+                    await update_subject_mode(subject_id, new_mode)
+                    mode = new_mode
+        else:
+            if sect_label is None:
+                await update.message.reply_text("حدد القسم أيضًا (نظري/مناقشة/عملي).")
+                return ASK_INPUT
+            section = SECTION_ALIASES.get(sect_label.lower())
+            if section is None:
+                await update.message.reply_text(
+                    "القسم غير معروف، استخدم: نظري، مناقشة، عملي."
+                )
+                return ASK_INPUT
+            if mode == "theory_discussion" and section == "lab":
+                await update.message.reply_text("هذا المقرر لا يحتوي على قسم عملي.")
+                return ASK_INPUT
+
+    if sect_label is None:
+        sect_label = SECTION_LABELS.get(section, section)
+    else:
+        sect_label = SECTION_LABELS.get(section, sect_label)
 
     info.update(
         {
@@ -164,7 +212,11 @@ async def insert_sub_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await upsert_topic(
             info["group_id"], info["thread_id"], info["subject_id"], info["section"]
         )
-        await query.edit_message_text("تم الحفظ بنجاح.")
+        await query.edit_message_text(
+            "تم ربط الموضوع بالمادة {0} - {1}.".format(
+                info["subject_name"], SECTION_LABELS.get(info["section"], info["section"])
+            )
+        )
         for key in ("cmd_msg_id", "input_msg_id"):
             msg_id = info.get(key)
             if msg_id:

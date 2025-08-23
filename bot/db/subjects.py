@@ -58,11 +58,26 @@ async def get_or_create_term(name: str) -> int:
     assert term_id is not None
     return term_id
 
-async def insert_subject(code: str, name: str, level_id: int, term_id: int):
+async def insert_subject(
+    code: str,
+    name: str,
+    level_id: int,
+    term_id: int,
+    sections_mode: str = "theory_only",
+):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO subjects (code, name, level_id, term_id) VALUES (?, ?, ?, ?)",
-            (code, name, level_id, term_id),
+            "INSERT INTO subjects (code, name, level_id, term_id, sections_mode) VALUES (?, ?, ?, ?, ?)",
+            (code, name, level_id, term_id, sections_mode),
+        )
+        await db.commit()
+
+
+async def update_subject_mode(subject_id: int, mode: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE subjects SET sections_mode=? WHERE id=?",
+            (mode, subject_id),
         )
         await db.commit()
 
