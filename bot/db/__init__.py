@@ -50,6 +50,9 @@ from .ingestions import (
     get_admin_id_by_tg_user,
     insert_ingestion,
     attach_material,
+    list_pending_ingestions,
+    update_ingestion_status,
+    delete_ingestion,
 )
 
 __all__ = [
@@ -69,4 +72,5 @@ __all__ = [
     'is_admin', 'get_group_id_by_chat', 'get_subject_by_name', 'get_topic_link', 'upsert_topic',
     'get_group_info', 'upsert_group',
     'get_admin_id_by_tg_user', 'insert_ingestion', 'attach_material',
+    'list_pending_ingestions', 'update_ingestion_status', 'delete_ingestion',
 ]
