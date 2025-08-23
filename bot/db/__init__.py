@@ -52,6 +52,7 @@ from .groups import (
 from .admins import (
     MANAGE_GROUPS,
     UPLOAD_CONTENT,
+    APPROVE_CONTENT,
     PERMISSIONS,
     list_admins,
     get_admin,
@@ -89,7 +90,7 @@ __all__ = [
     'list_categories_for_lecture',
     'get_group_id_by_chat', 'get_subject_by_name', 'get_topic_link', 'upsert_topic',
     'get_group_info', 'upsert_group',
-    'MANAGE_GROUPS', 'UPLOAD_CONTENT', 'PERMISSIONS',
+    'MANAGE_GROUPS', 'UPLOAD_CONTENT', 'APPROVE_CONTENT', 'PERMISSIONS',
     'list_admins', 'get_admin', 'add_admin', 'update_admin', 'remove_admin',
     'get_admin_id_by_tg_user', 'get_admin_with_permissions', 'is_admin',
     'insert_ingestion', 'attach_material', 'list_pending_ingestions',

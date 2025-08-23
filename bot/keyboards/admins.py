@@ -4,6 +4,7 @@ from bot.db.admins import PERMISSIONS
 
 
 def build_permissions_keyboard(mask: int) -> InlineKeyboardMarkup:
+    """Create an inline keyboard to toggle available admin permissions."""
     buttons = []
     for flag, label in PERMISSIONS.items():
         prefix = "✅" if mask & flag else "❌"
