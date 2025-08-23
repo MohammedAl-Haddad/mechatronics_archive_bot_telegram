@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS subjects (
     name TEXT NOT NULL,
     level_id INTEGER NOT NULL,
     term_id INTEGER NOT NULL,
+    sections_mode TEXT CHECK(sections_mode IN (
+        'theory_only','theory_discussion','theory_discussion_lab'
+    )) DEFAULT 'theory_discussion_lab',
     FOREIGN KEY (level_id) REFERENCES levels(id),
     FOREIGN KEY (term_id) REFERENCES terms(id)
 );
@@ -44,12 +47,43 @@ CREATE TABLE IF NOT EXISTS lecturers (
     role TEXT CHECK(role IN ('lecturer','ta','lab')) DEFAULT 'lecturer'
 );
 
+-- حسابات إدارية
+CREATE TABLE IF NOT EXISTS admins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tg_user_id INTEGER UNIQUE,
+    name TEXT
+);
+
+-- مجموعات تيليجرام
+CREATE TABLE IF NOT EXISTS groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tg_chat_id INTEGER UNIQUE NOT NULL,
+    title TEXT
+);
+
+-- المواضيع داخل المجموعات
+CREATE TABLE IF NOT EXISTS topics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    tg_topic_id INTEGER NOT NULL,
+    name TEXT,
+    FOREIGN KEY (group_id) REFERENCES groups(id)
+);
+
+-- عمليات الإدخال/الرفع
+CREATE TABLE IF NOT EXISTS ingestions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    material_id INTEGER,
+    status TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials(id)
+);
+
 -- مواد تعليمية مرتبطة بالمادة + القسم + تصنيف المحتوى
 CREATE TABLE IF NOT EXISTS materials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     subject_id INTEGER NOT NULL,
     section TEXT NOT NULL CHECK(section IN ('theory','discussion','lab','syllabus','apps')),
-    -- category TEXT NOT NULL CHECK(category IN ('lecture','exam','booklet','board_images','video','simulation','summary','notes','external_link')),
     category TEXT NOT NULL CHECK(category IN (
     'lecture','slides','audio','exam','booklet','board_images','video','simulation',
     'summary','notes','external_link','mind_map','transcript','related'
@@ -59,9 +93,15 @@ CREATE TABLE IF NOT EXISTS materials (
     url TEXT,                 -- رابط تيليجرام/جوجل درايف/يوتيوب ... الخ
     year_id INTEGER,          -- اختياري
     lecturer_id INTEGER,      -- اختياري
+    tg_storage_chat_id INTEGER,
+    tg_storage_msg_id INTEGER,
+    source_chat_id INTEGER,
+    source_topic_id INTEGER,
+    source_message_id INTEGER,
+    created_by_admin_id INTEGER,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (subject_id) REFERENCES subjects(id),
     FOREIGN KEY (year_id) REFERENCES years(id),
-    FOREIGN KEY (lecturer_id) REFERENCES lecturers(id)
+    FOREIGN KEY (lecturer_id) REFERENCES lecturers(id),
+    FOREIGN KEY (created_by_admin_id) REFERENCES admins(id)
 );
-
