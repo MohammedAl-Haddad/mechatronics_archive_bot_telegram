@@ -10,7 +10,9 @@ from bot.db import (
     get_level_id_by_name,
     get_term_id_by_name,
     get_subject_id_by_name,
+    init_db,
 )
+from bot.db.seed_admins import seed_owner
 
 
 async def _ensure_level_id(name: str) -> int:
@@ -93,4 +95,16 @@ __all__ = [
     "load_years_and_lecturers",
     "load_materials",
 ]
+
+
+async def main() -> None:
+    """Entry point for seeding operations."""
+    await init_db()
+    await seed_owner()
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())
 

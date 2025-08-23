@@ -2,7 +2,7 @@ import os
 import aiosqlite
 
 DB_PATH = "database/archive.db"
-DB_VERSION = 2
+DB_VERSION = 3
 
 
 async def init_db() -> None:
@@ -36,7 +36,9 @@ async def migrate_if_needed() -> None:
                 CREATE TABLE IF NOT EXISTS admins (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     tg_user_id INTEGER NOT NULL UNIQUE,
-                    username TEXT
+                    username TEXT,
+                    role TEXT NOT NULL DEFAULT 'ADMIN',
+                    permissions_mask INTEGER NOT NULL DEFAULT 0
                 );
 
                 CREATE TABLE IF NOT EXISTS groups (
@@ -84,6 +86,13 @@ async def migrate_if_needed() -> None:
                     ON topics(group_id, tg_topic_id);
                 CREATE INDEX IF NOT EXISTS idx_ingestions_status
                     ON ingestions(status, created_at);
+                """
+            )
+        elif user_version < 3:
+            await db.executescript(
+                """
+                ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT 'ADMIN';
+                ALTER TABLE admins ADD COLUMN permissions_mask INTEGER NOT NULL DEFAULT 0;
                 """
             )
 
