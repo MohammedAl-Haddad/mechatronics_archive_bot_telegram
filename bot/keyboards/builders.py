@@ -19,6 +19,21 @@ from .constants import (
 )
 
 
+async def generate_main_menu(user_id: int) -> ReplyKeyboardMarkup:
+    """Build the main menu, appending admin controls if permitted."""
+    from bot.db import is_admin, MANAGE_ADMINS
+
+    buttons = [
+        ["📚 المستويات", "🗂 الخطة الدراسية"],
+        ["🔧 البرامج الهندسية", " بحث"],
+        ["📡 القنوات والمجموعات", "🆘 مساعدة"],
+        ["📨 تواصل معنا"],
+    ]
+    if await is_admin(user_id, MANAGE_ADMINS):
+        buttons.append(["👤 إدارة المشرفين"])
+    return ReplyKeyboardMarkup(buttons, resize_keyboard=True, one_time_keyboard=True)
+
+
 def _rows(items: list[str], cols: int = 2) -> list[list[str]]:
     """Split items into rows with a fixed number of columns, skipping empties."""
     items = [i for i in items if i]
@@ -188,6 +203,7 @@ def generate_lecture_category_menu_keyboard(categories: list[str]) -> ReplyKeybo
 
 
 __all__ = [
+    "generate_main_menu",
     "generate_levels_keyboard",
     "generate_terms_keyboard",
     "generate_subjects_keyboard",

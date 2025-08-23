@@ -12,7 +12,7 @@ from telegram.ext import (
 
 from bot.db import (
     is_admin,
-    MANAGE_GROUPS,
+    MANAGE_ADMINS,
     list_admins,
     add_admin,
     get_admin,
@@ -27,7 +27,7 @@ MENU, ADD_ID, ADD_NAME, ADD_PERMS, ADD_LEVEL, EDIT_ID, EDIT_NAME, EDIT_PERMS, ED
 
 async def admins_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    if not user or not await is_admin(user.id, MANAGE_GROUPS):
+    if not user or not await is_admin(user.id, MANAGE_ADMINS):
         await update.message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
         return ConversationHandler.END
 
@@ -188,7 +188,10 @@ async def remove_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 admins_conv = ConversationHandler(
-    entry_points=[CommandHandler("admins", admins_start)],
+    entry_points=[
+        CommandHandler("admins", admins_start),
+        MessageHandler(filters.Regex("^👤 إدارة المشرفين$"), admins_start),
+    ],
     states={
         MENU: [CallbackQueryHandler(admins_menu, pattern="^adm_")],
         ADD_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_id)],

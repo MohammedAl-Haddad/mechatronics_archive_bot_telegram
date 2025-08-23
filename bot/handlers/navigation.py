@@ -23,7 +23,6 @@ from bot.db import (
 )
 
 from ..keyboards.constants import (
-    main_menu,
     TERM_MENU_SHOW_SUBJECTS,
     TERM_MENU_PLAN,
     TERM_MENU_LINKS,
@@ -53,6 +52,7 @@ from ..keyboards.builders import (
     generate_lecture_titles_keyboard,
     generate_year_category_menu_keyboard,
     generate_lecture_category_menu_keyboard,
+    generate_main_menu,
 )
 
 from ..navigation import NavigationState
@@ -65,7 +65,10 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # لا شيء محدد → القائمة الرئيسية
     if not stack:
-        return await update.message.reply_text("اختر من القائمة:", reply_markup=main_menu)
+        return await update.message.reply_text(
+            "اختر من القائمة:",
+            reply_markup=await generate_main_menu(update.effective_user.id),
+        )
 
     top_type = stack[-1][0]
 
@@ -196,7 +199,10 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = f"المحاضرة: {lecture_title}\nاختر نوع الملف:" if cats else "لا توجد أنواع ملفات لهذه المحاضرة."
         return await update.message.reply_text(msg, reply_markup=generate_lecture_category_menu_keyboard(cats))
 
-    return await update.message.reply_text("اختر من القائمة:", reply_markup=main_menu)
+    return await update.message.reply_text(
+        "اختر من القائمة:",
+        reply_markup=await generate_main_menu(update.effective_user.id),
+    )
 
 # --------------------------------------------------------------------------
 async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -230,7 +236,10 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 2) زر العودة إلى الرئيسية
     if text == "🔙 العودة للقائمة الرئيسية":
         nav.back_to_levels()
-        return await update.message.reply_text("تم الرجوع إلى القائمة الرئيسية ⬇️", reply_markup=main_menu)
+        return await update.message.reply_text(
+            "تم الرجوع إلى القائمة الرئيسية ⬇️",
+            reply_markup=await generate_main_menu(update.effective_user.id),
+        )
 
     # # 3) زر الرجوع الذكي (خطوة واحدة)
     # if text == "🔙 العودة":
@@ -288,7 +297,10 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text in (TERM_MENU_SHOW_SUBJECTS, TERM_MENU_PLAN, TERM_MENU_LINKS, TERM_MENU_ADV_SEARCH):
         level_id, term_id = nav.get_ids()
         if not (level_id and term_id):
-            return await update.message.reply_text("ابدأ باختيار المستوى ثم الترم.", reply_markup=main_menu)
+            return await update.message.reply_text(
+                "ابدأ باختيار المستوى ثم الترم.",
+                reply_markup=await generate_main_menu(update.effective_user.id),
+            )
 
         if text == TERM_MENU_SHOW_SUBJECTS:
             nav.push_view("subject_list")
@@ -348,7 +360,10 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         subject_id = nav.data.get("subject_id")
         section_code = nav.data.get("section")
         if not (subject_id and section_code):
-            return await update.message.reply_text("ابدأ باختيار المادة ثم القسم.", reply_markup=main_menu)
+            return await update.message.reply_text(
+                "ابدأ باختيار المادة ثم القسم.",
+                reply_markup=await generate_main_menu(update.effective_user.id),
+            )
 
         if text == FILTER_BY_YEAR:
             years = await get_years_for_subject_section(subject_id, section_code)
@@ -427,7 +442,10 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lecturer_label = next((lbl for t, lbl in nav.stack if t == "lecturer"), "")
 
         if not (subject_id and section_code and lecturer_id):
-            return await update.message.reply_text("ابدأ باختيار المادة → القسم → المحاضر.", reply_markup=main_menu)
+            return await update.message.reply_text(
+                "ابدأ باختيار المادة → القسم → المحاضر.",
+                reply_markup=await generate_main_menu(update.effective_user.id),
+            )
 
         if text == CHOOSE_YEAR_FOR_LECTURER:
             years = await get_years_for_subject_section_lecturer(subject_id, section_code, lecturer_id)

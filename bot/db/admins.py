@@ -9,10 +9,12 @@ from .base import DB_PATH
 # Permission bit flags
 MANAGE_GROUPS = 1 << 0
 UPLOAD_CONTENT = 1 << 1
+MANAGE_ADMINS = 1 << 2
 
 PERMISSIONS = {
     MANAGE_GROUPS: "إدارة المجموعات",
     UPLOAD_CONTENT: "رفع المحتوى",
+    MANAGE_ADMINS: "إدارة المشرفين",
 }
 
 # Mask representing full access to all permissions
@@ -130,6 +132,7 @@ async def is_admin(
 __all__ = [
     "MANAGE_GROUPS",
     "UPLOAD_CONTENT",
+    "MANAGE_ADMINS",
     "FULL_ACCESS",
     "PERMISSIONS",
     "list_admins",
