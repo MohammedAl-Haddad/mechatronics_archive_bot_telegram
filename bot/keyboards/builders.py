@@ -20,7 +20,8 @@ from .constants import (
 
 
 def _rows(items: list[str], cols: int = 2) -> list[list[str]]:
-    """Split items into rows with a fixed number of columns."""
+    """Split items into rows with a fixed number of columns, skipping empties."""
+    items = [i for i in items if i]
     keyboard, row = [], []
     for item in items:
         row.append(item)
