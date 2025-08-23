@@ -74,11 +74,19 @@ async def _migrate(db: aiosqlite.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_id INTEGER NOT NULL,
             tg_topic_id INTEGER NOT NULL,
-            name TEXT,
-            FOREIGN KEY (group_id) REFERENCES groups(id)
+            subject_id INTEGER NOT NULL,
+            section TEXT NOT NULL CHECK(section IN ('theory','discussion','lab')),
+            FOREIGN KEY (group_id) REFERENCES groups(id),
+            FOREIGN KEY (subject_id) REFERENCES subjects(id),
+            UNIQUE (group_id, tg_topic_id)
         )
         """
     )
+
+    topic_cols = [("subject_id", "INTEGER"), ("section", "TEXT")]
+    for col, col_type in topic_cols:
+        if not await _column_exists(db, "topics", col):
+            await db.execute(f"ALTER TABLE topics ADD COLUMN {col} {col_type}")
     await db.execute(
         """
         CREATE TABLE IF NOT EXISTS ingestions (
@@ -99,7 +107,7 @@ async def _migrate(db: aiosqlite.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_materials_storage ON materials(tg_storage_chat_id, tg_storage_msg_id)"
     )
     await db.execute(
-        "CREATE INDEX IF NOT EXISTS idx_topics_chat ON topics(group_id, tg_topic_id)"
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_topics_chat ON topics(group_id, tg_topic_id)"
     )
     await db.execute(
         "CREATE INDEX IF NOT EXISTS idx_ingestions_status ON ingestions(status, created_at)"

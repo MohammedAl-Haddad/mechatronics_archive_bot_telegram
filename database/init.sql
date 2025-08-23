@@ -69,9 +69,15 @@ CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     tg_topic_id INTEGER NOT NULL,
-    name TEXT,
-    FOREIGN KEY (group_id) REFERENCES groups(id)
+    subject_id INTEGER NOT NULL,
+    section TEXT NOT NULL CHECK(section IN ('theory','discussion','lab')),
+    FOREIGN KEY (group_id) REFERENCES groups(id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    UNIQUE (group_id, tg_topic_id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_topics_chat
+ON topics(group_id, tg_topic_id);
 
 -- عمليات الإدخال/الرفع
 CREATE TABLE IF NOT EXISTS ingestions (
