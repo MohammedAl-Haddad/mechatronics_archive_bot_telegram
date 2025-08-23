@@ -17,7 +17,6 @@ from telegram.ext import (
 from bot.db import (
     is_admin,
     get_group_id_by_chat,
-    get_group_info,
     get_subject_by_name,
     get_topic_link,
     insert_subject,
@@ -57,16 +56,11 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
         return ConversationHandler.END
 
-    group_id = await get_group_id_by_chat(chat.id)
-    if group_id is None:
-        await message.reply_text("المجموعة غير مسجلة. استخدم /insert_group أولًا.")
-        return ConversationHandler.END
-
-    group_info = await get_group_info(chat.id)
+    group_info = await get_group_id_by_chat(chat.id)
     if group_info is None:
         await message.reply_text("المجموعة غير مسجلة. استخدم /insert_group أولًا.")
         return ConversationHandler.END
-    level_id, term_id = group_info
+    group_id, level_id, term_id = group_info
     thread_id = message.message_thread_id
 
     context.user_data["insert_sub"] = {

@@ -54,9 +54,10 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if chat is None or thread_id is None:
         return
 
-    group_id = await get_group_id_by_chat(chat.id)
-    if group_id is None:
+    group_info = await get_group_id_by_chat(chat.id)
+    if group_info is None:
         return
+    group_id, _, _ = group_info
 
     topic_link = await get_topic_link(group_id, thread_id)
     if topic_link is None:
