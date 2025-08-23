@@ -4,8 +4,9 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from ..config import ARCHIVE_CHANNEL_ID
-from ..db.topics import is_admin
-from ..db.ingestions import (
+from ..db import (
+    is_admin,
+    UPLOAD_CONTENT,
     list_pending_ingestions,
     get_ingestion_material,
     update_ingestion_status,
@@ -14,7 +15,7 @@ from ..db.materials import update_material_storage
 
 async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
-    if not user or not await is_admin(user.id):
+    if not user or not await is_admin(user.id, UPLOAD_CONTENT):
         return
     pending = await list_pending_ingestions()
     if not pending:
@@ -37,7 +38,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     await query.answer()
     user = update.effective_user
-    if not user or not await is_admin(user.id):
+    if not user or not await is_admin(user.id, UPLOAD_CONTENT):
         await query.edit_message_reply_markup(reply_markup=None)
         return
     action, ing_id = query.data.split(":")

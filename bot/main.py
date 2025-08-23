@@ -20,6 +20,7 @@ from .handlers import (
     insert_sub_conv,
     ingestion_handler,
     insert_group_conv,
+    admins_conv,
     approvals_handler,
     approval_callback,
     moderation_handler,
@@ -56,6 +57,7 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(insert_group_conv)
+    app.add_handler(admins_conv)
     app.add_handler(insert_sub_conv)
     app.add_handler(approvals_handler)
     app.add_handler(approval_callback)

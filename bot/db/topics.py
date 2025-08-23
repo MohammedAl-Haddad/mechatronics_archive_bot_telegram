@@ -1,25 +1,6 @@
-import os
-
 import aiosqlite
 
-from bot.config import ADMIN_USER_IDS  # loads environment variables
 from .base import DB_PATH
-
-_owner = os.getenv("OWNER_TG_ID")
-OWNER_TG_ID = int(_owner) if _owner and _owner.strip().isdigit() else None
-
-
-async def is_admin(tg_user_id: int) -> bool:
-    async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute(
-            "SELECT 1 FROM admins WHERE tg_user_id=? AND is_active=1", (tg_user_id,)
-        )
-        if (await cur.fetchone()) is not None:
-            return True
-
-    if OWNER_TG_ID is not None and tg_user_id == OWNER_TG_ID:
-        return True
-    return tg_user_id in ADMIN_USER_IDS
 
 
 async def get_group_id_by_chat(tg_chat_id: int) -> tuple[int, int, int] | None:
@@ -81,7 +62,6 @@ async def upsert_topic(
 
 
 __all__ = [
-    "is_admin",
     "get_group_id_by_chat",
     "get_subject_by_name",
     "get_topic_link",

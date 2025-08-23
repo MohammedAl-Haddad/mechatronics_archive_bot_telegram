@@ -16,6 +16,7 @@ from telegram.ext import (
 
 from bot.db import (
     is_admin,
+    MANAGE_GROUPS,
     get_group_id_by_chat,
     get_subject_by_name,
     get_topic_link,
@@ -52,7 +53,7 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("استخدم هذا الأمر داخل موضوع ضمن مجموعة.")
         return ConversationHandler.END
 
-    if not await is_admin(user.id):
+    if not await is_admin(user.id, MANAGE_GROUPS):
         await message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
         return ConversationHandler.END
 
