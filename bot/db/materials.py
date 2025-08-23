@@ -76,6 +76,27 @@ async def update_material_storage(
         await db.commit()
 
 
+async def get_material_source(
+    material_id: int,
+) -> tuple[int | None, int | None, int | None] | None:
+    """Return source identifiers for *material_id*.
+
+    The tuple contains ``(source_chat_id, source_topic_id, source_message_id)``.
+    ``None`` is returned if the material does not exist.
+    """
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            """
+            SELECT source_chat_id, source_topic_id, source_message_id
+            FROM materials WHERE id=?
+            """,
+            (material_id,),
+        )
+        row = await cur.fetchone()
+        return (row[0], row[1], row[2]) if row else None
+
+
 async def insert_year(name: str):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("INSERT OR IGNORE INTO years (name) VALUES (?)", (name,))
