@@ -505,8 +505,15 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     cats = await list_categories_for_subject_section_year(subject_id, section_code, year_id, lecturer_id=lecturer_id)
                     return await update.message.reply_text("لا توجد ملفات لهذا التصنيف.", reply_markup=generate_year_category_menu_keyboard(cats, titles_exist))
 
-                for _id, title, url in mats:
-                    await update.message.reply_text(f"📄 {title}\n{url or '(لا يوجد رابط)'}")
+                for _id, title, url, chat_id, msg_id in mats:
+                    if msg_id and chat_id:
+                        await context.bot.copy_message(
+                            chat_id=update.effective_chat.id,
+                            from_chat_id=chat_id,
+                            message_id=msg_id,
+                        )
+                    elif url:
+                        await update.message.reply_text(f"📄 {title}\n{url}")
 
                 titles_exist = False
                 if lecturer_id and year_id:
@@ -542,8 +549,15 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not cats:
                 mats = await get_lecture_materials(subject_id, section_code, year_id=year_id, lecturer_id=lecturer_id, title=text)
                 if mats:
-                    for _id, title, url in mats:
-                        await update.message.reply_text(f"📄 {title}\n{url or '(لا يوجد رابط)'}")
+                    for _id, title, url, chat_id, msg_id in mats:
+                        if msg_id and chat_id:
+                            await context.bot.copy_message(
+                                chat_id=update.effective_chat.id,
+                                from_chat_id=chat_id,
+                                message_id=msg_id,
+                            )
+                        elif url:
+                            await update.message.reply_text(f"📄 {title}\n{url}")
                     # ارجع لقائمة العناوين المناسبة للسياق
                     titles = await list_lecture_titles(subject_id, section_code)
                     if year_id and lecturer_id:
@@ -601,8 +615,15 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 cats = await list_categories_for_lecture(subject_id, section_code, lecture_title, year_id=year_id, lecturer_id=lecturer_id)
                 return await update.message.reply_text("لا توجد ملفات لهذا النوع.", reply_markup=generate_lecture_category_menu_keyboard(cats))
 
-            for _id, title, url in mats:
-                await update.message.reply_text(f"📄 {title}\n{url or '(لا يوجد رابط)'}")
+            for _id, title, url, chat_id, msg_id in mats:
+                if msg_id and chat_id:
+                    await context.bot.copy_message(
+                        chat_id=update.effective_chat.id,
+                        from_chat_id=chat_id,
+                        message_id=msg_id,
+                    )
+                elif url:
+                    await update.message.reply_text(f"📄 {title}\n{url}")
 
             cats = await list_categories_for_lecture(subject_id, section_code, lecture_title, year_id=year_id, lecturer_id=lecturer_id)
             return await update.message.reply_text("اختر نوعًا آخر:", reply_markup=generate_lecture_category_menu_keyboard(cats))

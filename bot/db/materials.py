@@ -110,6 +110,7 @@ async def get_years_for_subject_section(subject_id: int, section: str):
             FROM materials m
             JOIN years y ON y.id = m.year_id
             WHERE m.subject_id = ? AND m.section = ?
+              AND (m.url IS NOT NULL OR m.tg_storage_msg_id IS NOT NULL)
             ORDER BY y.name DESC
             """,
             (subject_id, section),
@@ -125,6 +126,7 @@ async def get_lecturers_for_subject_section(subject_id: int, section: str):
             FROM materials m
             JOIN lecturers l ON l.id = m.lecturer_id
             WHERE m.subject_id = ? AND m.section = ?
+              AND (m.url IS NOT NULL OR m.tg_storage_msg_id IS NOT NULL)
             ORDER BY l.name
             """,
             (subject_id, section),
@@ -139,6 +141,7 @@ async def has_lecture_category(subject_id: int, section: str) -> bool:
             SELECT 1
             FROM materials
             WHERE subject_id=? AND section=? AND category='lecture'
+              AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
             LIMIT 1
             """,
             (subject_id, section),
@@ -153,6 +156,7 @@ async def list_lecture_titles(subject_id: int, section: str) -> list[str]:
             SELECT DISTINCT title
             FROM materials
             WHERE subject_id=? AND section=? AND category='lecture'
+              AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
             ORDER BY title
             """,
             (subject_id, section),
@@ -167,6 +171,7 @@ async def list_lecture_titles_by_year(subject_id: int, section: str, year_id: in
             SELECT DISTINCT title
             FROM materials
             WHERE subject_id=? AND section=? AND category='lecture' AND year_id=?
+              AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
             ORDER BY title
             """,
             (subject_id, section, year_id),
@@ -181,6 +186,7 @@ async def list_lecture_titles_by_lecturer(subject_id: int, section: str, lecture
             SELECT DISTINCT title
             FROM materials
             WHERE subject_id=? AND section=? AND category='lecture' AND lecturer_id=?
+              AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
             ORDER BY title
             """,
             (subject_id, section, lecturer_id),
@@ -197,6 +203,7 @@ async def list_lecture_titles_by_lecturer_year(
             SELECT DISTINCT title
             FROM materials
             WHERE subject_id=? AND section=? AND category='lecture' AND lecturer_id=? AND year_id=?
+              AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
             ORDER BY title
             """,
             (subject_id, section, lecturer_id, year_id),
@@ -213,6 +220,7 @@ async def get_years_for_subject_section_lecturer(subject_id: int, section: str, 
             JOIN years y ON y.id = m.year_id
             WHERE m.subject_id=? AND m.section=? AND m.lecturer_id=?
               AND m.category='lecture' AND m.year_id IS NOT NULL
+              AND (m.url IS NOT NULL OR m.tg_storage_msg_id IS NOT NULL)
             ORDER BY y.name DESC
             """,
             (subject_id, section, lecturer_id),
@@ -230,9 +238,10 @@ async def get_lecture_materials(
     title: str | None = None,
 ):
     q = """
-        SELECT id, title, url
+        SELECT id, title, url, tg_storage_chat_id, tg_storage_msg_id
         FROM materials
         WHERE subject_id=? AND section=? AND category='lecture'
+          AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
     """
     params = [subject_id, section]
     if year_id is not None:
@@ -261,9 +270,10 @@ async def get_materials_by_category(
     title: str | None = None,
 ):
     q = """
-        SELECT id, title, url
+        SELECT id, title, url, tg_storage_chat_id, tg_storage_msg_id
         FROM materials
         WHERE subject_id=? AND section=? AND category=?
+          AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
     """
     params = [subject_id, section, category]
     if year_id is not None:
@@ -305,6 +315,7 @@ async def list_categories_for_subject_section_year(
         WHERE subject_id=? AND section=? AND year_id=? AND category IS NOT NULL
           AND category <> 'lecture'
           AND category NOT IN ({placeholders})
+          AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
     """
     params = [subject_id, section, year_id, *lecture_attachment_cats]
 
@@ -328,6 +339,7 @@ async def list_categories_for_lecture(
         SELECT DISTINCT category
         FROM materials
         WHERE subject_id=? AND section=? AND title=? AND category IS NOT NULL
+          AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
     """
     params = [subject_id, section, title]
     if year_id is not None:
