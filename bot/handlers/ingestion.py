@@ -1,10 +1,9 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..config import ARCHIVE_CHANNEL_ID
-
 from ..db.ingestions import (
-    get_admin_id_by_tg_user,
+    UPLOAD_CONTENT,
+    get_admin_with_permissions,
     insert_ingestion,
     attach_material,
 )
@@ -12,10 +11,8 @@ from ..db.materials import (
     ensure_year_id,
     ensure_lecturer_id,
     insert_material,
-    update_material_storage,
 )
 from ..db.topics import (
-    is_admin,
     get_group_id_by_chat,
     get_topic_link,
 )
@@ -41,11 +38,14 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
 
     user = update.effective_user
-    if not user or not await is_admin(user.id):
+    if not user:
         return
 
-    admin_id = await get_admin_id_by_tg_user(user.id)
-    if admin_id is None:
+    admin_info = await get_admin_with_permissions(user.id)
+    if admin_info is None:
+        return
+    admin_id, permissions = admin_info
+    if not (permissions & UPLOAD_CONTENT):
         return
 
     message = update.effective_message
@@ -90,15 +90,9 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         created_by_admin_id=admin_id,
     )
 
-    ingestion_id = await insert_ingestion(message.message_id, admin_id, "pending")
-    await attach_material(ingestion_id, material_id, "approved")
-    copied = await context.bot.copy_message(
-        chat_id=ARCHIVE_CHANNEL_ID,
-        from_chat_id=chat.id,
-        message_id=message.message_id,
-    )
-    await update_material_storage(material_id, ARCHIVE_CHANNEL_ID, copied.message_id)
-    await message.reply_text(f"✅ {ingestion_id}")
+    ingestion_id = await insert_ingestion(message.message_id, admin_id)
+    await attach_material(ingestion_id, material_id, "pending")
+    await message.reply_text(f"⏳ {ingestion_id}")
 
 
 __all__ = ["ingestion_handler"]

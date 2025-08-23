@@ -3,24 +3,14 @@ from __future__ import annotations
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
-from ..db import (
-    is_admin,
+from ..config import ARCHIVE_CHANNEL_ID
+from ..db.topics import is_admin
+from ..db.ingestions import (
     list_pending_ingestions,
+    get_ingestion_material,
     update_ingestion_status,
 )
-from ..db.materials import insert_material, ensure_year_id, ensure_lecturer_id
-from ..parser.hashtags import parse_hashtags
-
-
-def _extract_hashtags(message) -> list[str]:
-    text = message.text or message.caption or ""
-    entities = message.entities or message.caption_entities or []
-    tags: list[str] = []
-    for ent in entities:
-        if ent.type == "hashtag":
-            tags.append(text[ent.offset : ent.offset + ent.length])
-    return tags
-
+from ..db.materials import update_material_storage
 
 async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -30,20 +20,14 @@ async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not pending:
         await update.message.reply_text("لا توجد رسائل معلقة.")
         return
-    for ingestion_id, msg_id, tg_user_id in pending:
+    for ingestion_id, chat_id, msg_id in pending:
         buttons = [[
-            InlineKeyboardButton(
-                "Approve",
-                callback_data=f"appr:{ingestion_id}:{tg_user_id}:{msg_id}",
-            ),
-            InlineKeyboardButton(
-                "Reject",
-                callback_data=f"rej:{ingestion_id}:{tg_user_id}:{msg_id}",
-            ),
+            InlineKeyboardButton("Approve", callback_data=f"appr:{ingestion_id}"),
+            InlineKeyboardButton("Reject", callback_data=f"rej:{ingestion_id}"),
         ]]
         await context.bot.copy_message(
             chat_id=update.effective_chat.id,
-            from_chat_id=tg_user_id,
+            from_chat_id=chat_id,
             message_id=msg_id,
             reply_markup=InlineKeyboardMarkup(buttons),
         )
@@ -52,43 +36,28 @@ async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-    action, ing_id, tg_user_id, msg_id = query.data.split(":")
-    ingestion_id = int(ing_id)
-    tg_user_id = int(tg_user_id)
-    msg_id = int(msg_id)
-    if action == "appr":
-        tags = _extract_hashtags(query.message)
-        info = parse_hashtags(tags)
-        category = info.get("category") or "lecture"
-        title = info.get("title") or "بدون عنوان"
-        year_id = None
-        if info.get("year"):
-            year_id = await ensure_year_id(info["year"])
-        lecturer_id = None
-        if info.get("lecturer"):
-            lecturer_id = await ensure_lecturer_id(info["lecturer"])
-        try:
-            await insert_material(
-                0,
-                "theory",
-                category,
-                title,
-                year_id=year_id,
-                lecturer_id=lecturer_id,
-                source_chat_id=tg_user_id,
-                source_message_id=msg_id,
-            )
-        except Exception:
-            pass
-        await update_ingestion_status(ingestion_id, "approved")
+    user = update.effective_user
+    if not user or not await is_admin(user.id):
         await query.edit_message_reply_markup(reply_markup=None)
+        return
+    action, ing_id = query.data.split(":")
+    ingestion_id = int(ing_id)
+    info = await get_ingestion_material(ingestion_id)
+    if info is None:
+        await query.edit_message_reply_markup(reply_markup=None)
+        return
+    material_id, src_chat_id, src_msg_id = info
+    if action == "appr":
+        copied = await context.bot.copy_message(
+            chat_id=ARCHIVE_CHANNEL_ID,
+            from_chat_id=src_chat_id,
+            message_id=src_msg_id,
+        )
+        await update_material_storage(material_id, ARCHIVE_CHANNEL_ID, copied.message_id)
+        await update_ingestion_status(ingestion_id, "approved")
     else:
         await update_ingestion_status(ingestion_id, "rejected")
-        await query.edit_message_reply_markup(reply_markup=None)
-        try:
-            await context.bot.send_message(tg_user_id, "تم رفض رسالتك.")
-        except Exception:
-            pass
+    await query.edit_message_reply_markup(reply_markup=None)
 
 
 approvals_handler = CommandHandler("approvals", list_pending)
