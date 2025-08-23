@@ -15,6 +15,9 @@ PERMISSIONS = {
     UPLOAD_CONTENT: "رفع المحتوى",
 }
 
+# Mask representing full access to all permissions
+FULL_ACCESS = (1 << 31) - 1
+
 _owner = os.getenv("OWNER_TG_ID")
 OWNER_TG_ID = int(_owner) if _owner and _owner.strip().isdigit() else None
 
@@ -79,7 +82,14 @@ async def get_admin_with_permissions(tg_user_id: int) -> tuple[int, int] | None:
             (tg_user_id,),
         )
         row = await cur.fetchone()
-        return (row[0], row[1]) if row else None
+
+    if row:
+        return row[0], row[1]
+
+    if OWNER_TG_ID is not None and tg_user_id == OWNER_TG_ID:
+        return 0, FULL_ACCESS
+
+    return None
 
 
 async def get_admin_id_by_tg_user(tg_user_id: int) -> int | None:
@@ -95,29 +105,32 @@ async def get_admin_id_by_tg_user(tg_user_id: int) -> int | None:
 async def is_admin(
     tg_user_id: int, permission: int | None = None, level_id: int | None = None
 ) -> bool:
-    async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute(
-            "SELECT permissions_mask, level_scope, is_active FROM admins WHERE tg_user_id=?",
-            (tg_user_id,),
-        )
-        row = await cur.fetchone()
-
-    if row and row[2] == 1:
-        permissions, level_scope = row[0], row[1]
-        if permission and not (permissions & permission):
-            return False
-        if level_id is not None and level_scope not in ("all", str(level_id)):
-            return False
-        return True
-
     if OWNER_TG_ID is not None and tg_user_id == OWNER_TG_ID:
-        return True
-    return tg_user_id in ADMIN_USER_IDS
+        permissions, level_scope = FULL_ACCESS, "all"
+    else:
+        async with aiosqlite.connect(DB_PATH) as db:
+            cur = await db.execute(
+                "SELECT permissions_mask, level_scope, is_active FROM admins WHERE tg_user_id=?",
+                (tg_user_id,),
+            )
+            row = await cur.fetchone()
+
+        if row and row[2] == 1:
+            permissions, level_scope = row[0], row[1]
+        else:
+            return tg_user_id in ADMIN_USER_IDS
+
+    if permission and not (permissions & permission):
+        return False
+    if level_id is not None and level_scope not in ("all", str(level_id)):
+        return False
+    return True
 
 
 __all__ = [
     "MANAGE_GROUPS",
     "UPLOAD_CONTENT",
+    "FULL_ACCESS",
     "PERMISSIONS",
     "list_admins",
     "get_admin",
