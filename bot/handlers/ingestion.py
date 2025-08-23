@@ -17,6 +17,10 @@ from ..db import (
     get_topic_link,
 )
 from ..parser.hashtags import parse_hashtags
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_hashtags(update: Update) -> list[str]:
@@ -33,38 +37,61 @@ def _extract_hashtags(update: Update) -> list[str]:
 
 
 async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
     tags = _extract_hashtags(update)
     if not tags:
+        logger.warning("No hashtags found")
+        if message:
+            await message.reply_text("لم يتم العثور على وسوم.")
         return
 
     user = update.effective_user
     if not user:
+        logger.warning("No effective user on update")
+        if message:
+            await message.reply_text("لا يمكن تحديد المستخدم.")
         return
 
     admin_info = await get_admin_with_permissions(user.id)
     if admin_info is None:
+        logger.warning("User %s is not an admin", user.id)
+        if message:
+            await message.reply_text("المستخدم ليس مشرفًا.")
         return
     admin_id, permissions = admin_info
     if not (permissions & UPLOAD_CONTENT):
+        logger.warning("User %s lacks upload permission", user.id)
+        await message.reply_text("لا تملك صلاحية رفع المحتوى.")
         return
 
-    message = update.effective_message
     chat = update.effective_chat
-    thread_id = message.message_thread_id
+    thread_id = message.message_thread_id if message else None
     if chat is None or thread_id is None:
+        logger.warning("Missing chat %s or thread %s", chat, thread_id)
+        if message:
+            await message.reply_text("لا يمكن تحديد المحادثة أو الموضوع.")
         return
 
     group_info = await get_group_id_by_chat(chat.id)
+    logger.debug("group_info=%s", group_info)
     if group_info is None:
+        logger.warning("Group info not found for chat %s", chat.id)
+        await message.reply_text("المجموعة غير معروفة.")
         return
     group_id, _, _ = group_info
 
     topic_link = await get_topic_link(group_id, thread_id)
+    logger.debug("topic_link=%s", topic_link)
     if topic_link is None:
+        logger.warning(
+            "Topic link not found for group %s thread %s", group_id, thread_id
+        )
+        await message.reply_text("لم يتم العثور على رابط الموضوع.")
         return
     subject_id, _, section = topic_link
 
     info = parse_hashtags(tags)
+    logger.debug("category=%s title=%s", info["category"], info["title"])
     category = info["category"]
     title = info["title"]
     lecturer_name = info["lecturer"]
@@ -73,6 +100,8 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # extracted title (either from ``category:title`` syntax or remaining
     # hashtags) to identify the lecture it belongs to.
     if category is None or title is None:
+        logger.warning("Missing category or title in hashtags")
+        await message.reply_text("الوسوم تفتقد الفئة أو العنوان.")
         return
 
     year_id = None
