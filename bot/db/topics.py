@@ -22,13 +22,14 @@ async def is_admin(tg_user_id: int) -> bool:
     return tg_user_id in ADMIN_USER_IDS
 
 
-async def get_group_id_by_chat(tg_chat_id: int) -> int | None:
+async def get_group_id_by_chat(tg_chat_id: int) -> tuple[int, int, int] | None:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "SELECT id FROM groups WHERE tg_chat_id=?", (tg_chat_id,)
+            "SELECT id, level_id, term_id FROM groups WHERE tg_chat_id=?",
+            (tg_chat_id,),
         )
         row = await cur.fetchone()
-        return row[0] if row else None
+        return (row[0], row[1], row[2]) if row else None
 
 
 async def get_subject_by_name(name: str) -> tuple[int, str] | None:
