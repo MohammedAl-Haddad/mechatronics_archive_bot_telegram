@@ -20,6 +20,8 @@ from .handlers import (
     insert_sub_conv,
     ingestion_handler,
     insert_group_conv,
+    approvals_handler,
+    approval_callback,
 )
 
 # --------------------------------------------------------------------------
@@ -52,6 +54,8 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(insert_group_conv)
     app.add_handler(insert_sub_conv)
+    app.add_handler(approvals_handler)
+    app.add_handler(approval_callback)
     app.add_handler(
         MessageHandler(filters.Entity("hashtag"), ingestion_handler),
         group=1,
