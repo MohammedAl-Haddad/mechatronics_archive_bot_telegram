@@ -66,6 +66,8 @@ python -m bot.main
 - [ربط المجموعات](docs/group-linking.md)
 - [رفع المحتوى](docs/content-upload.md)
 - [دليل المالك](docs/owner-guide.md)
+- [دليل المشرفين](docs/moderators_guide_ar.md)
+- [دليل المستخدمين](docs/user_guide_ar.md)
 
 ## الاختبار
 
