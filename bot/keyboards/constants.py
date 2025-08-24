@@ -9,8 +9,8 @@ BACK               = "🔙 العودة"
 BACK_TO_LEVELS     = "🔙 العودة لقائمة المستويات"
 BACK_TO_SUBJECTS   = "🔙 العودة لقائمة المواد"
 
-FILTER_BY_YEAR     = "📅 حسب السنة"
-FILTER_BY_LECTURER = "👤 حسب المحاضر"
+FILTER_BY_YEAR     = "📂 حسب السنة"
+FILTER_BY_LECTURER = "👨‍🏫 حسب المحاضر"
 LIST_LECTURES      = "📚 عرض المحاضرات"
 
 YEAR_MENU_LECTURES = "📚 المحاضرات"
