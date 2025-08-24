@@ -59,14 +59,14 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update_ingestion_status(ingestion_id, "approved")
         await context.bot.send_message(
             chat_id=src_chat_id,
-            text=f"تمت الموافقة على طلبك رقم {ingestion_id}",
+            text="تمت الموافقة وأُضيف المحتوى إلى الأرشيف.",
             reply_to_message_id=src_msg_id,
         )
     else:
         await update_ingestion_status(ingestion_id, "rejected")
         await context.bot.send_message(
             chat_id=src_chat_id,
-            text=f"تم رفض طلبك رقم {ingestion_id}",
+            text="تم رفض المحتوى.",
             reply_to_message_id=src_msg_id,
         )
     await query.edit_message_reply_markup(reply_markup=None)

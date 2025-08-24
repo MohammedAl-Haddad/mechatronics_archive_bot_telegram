@@ -1,10 +1,7 @@
-from __future__ import annotations
-
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+import asyncio
+import asyncio
+import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler,
     MessageHandler,
@@ -15,15 +12,19 @@ from telegram.ext import (
 )
 
 from bot.db import (
-    is_admin,
+    is_owner,
+    has_perm,
     MANAGE_GROUPS,
     get_or_create_level,
     get_or_create_term,
     get_group_info,
     upsert_group,
 )
+from bot.utils.conv import conv_push, conv_cleanup
 
-ASK_INPUT, CONFIRM = range(2)
+logger = logging.getLogger(__name__)
+
+CHOOSING, AWAIT_INPUT, CONFIRM = range(3)
 
 
 async def insert_group_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -35,71 +36,74 @@ async def insert_group_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await message.reply_text("استخدم هذا الأمر داخل مجموعة خارقة.")
         return ConversationHandler.END
 
-    if not await is_admin(user.id, MANAGE_GROUPS):
+    if not (is_owner(user.id) or await has_perm(user.id, MANAGE_GROUPS)):
         await message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
         return ConversationHandler.END
 
-    info = {
-        "tg_chat_id": chat.id,
-        "chat_id": chat.id,
-        "cmd_msg_id": message.message_id,
-    }
-    context.user_data["insert_group"] = info
+    context.chat_data["conv_chat_id"] = chat.id
+    conv_push(context, message.message_id)
 
     existing = await get_group_info(chat.id)
+    buttons = [
+        [
+            InlineKeyboardButton("إدخال يدوي", callback_data="grp_manual"),
+            InlineKeyboardButton("إلغاء", callback_data="grp_cancel"),
+        ]
+    ]
     if existing:
-        level_id, term_id = existing
-        info.update({"level_id": level_id, "term_id": term_id})
-        buttons = [[
-            InlineKeyboardButton("تعديل", callback_data="ingrp_edit"),
-            InlineKeyboardButton("إلغاء", callback_data="ingrp_cancel"),
-        ]]
-        reply = f"المجموعة مرتبطة حاليًا بالمستوى {level_id} - الترم {term_id}"
-        sent = await message.reply_text(reply, reply_markup=InlineKeyboardMarkup(buttons))
-        info["confirm_msg_id"] = sent.message_id
-        return CONFIRM
+        buttons.insert(0, [InlineKeyboardButton("تعديل الربط", callback_data="grp_manual")])
 
-    await message.reply_text("أرسل المستوى متبوعًا بالترم (مثال: المستوى الأول - الترم الثاني)")
-    return ASK_INPUT
+    sent = await message.reply_text(
+        "اربط هذه المجموعة بالمستوى والترم.\nمثال: المستوى الأول — الترم الأول",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+    conv_push(context, sent.message_id)
+    context.chat_data["insert_group"] = {}
+    return CHOOSING
+
+
+async def insert_group_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "grp_manual":
+        await query.edit_message_text("أرسل: المستوى - الترم")
+        return AWAIT_INPUT
+    await conv_cleanup(context, context.bot)
+    return ConversationHandler.END
 
 
 async def insert_group_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    info = context.user_data.get("insert_group")
-    if not info:
-        return ConversationHandler.END
-
+    conv_push(context, update.message.message_id)
     text = update.message.text.strip()
     parts = [p.strip() for p in text.split("-", 1)]
-    level_name = parts[0]
-    term_name = parts[1] if len(parts) > 1 else None
+    if len(parts) < 2:
+        sent = await update.message.reply_text("أرسل: المستوى - الترم")
+        conv_push(context, sent.message_id)
+        return AWAIT_INPUT
 
+    level_name, term_name = parts
     level_id = await get_or_create_level(level_name)
-
-    if term_name is None:
-        await update.message.reply_text("حدد الترم أيضًا.")
-        return ASK_INPUT
-
     term_id = await get_or_create_term(term_name)
 
-    info.update(
+    context.chat_data["insert_group"].update(
         {
             "level_id": level_id,
             "term_id": term_id,
-            "input_msg_id": update.message.message_id,
             "level_name": level_name,
             "term_name": term_name,
         }
     )
-
-    buttons = [[
-        InlineKeyboardButton("تأكيد", callback_data="ingrp_confirm"),
-        InlineKeyboardButton("تعديل", callback_data="ingrp_edit"),
-        InlineKeyboardButton("إلغاء", callback_data="ingrp_cancel"),
-    ]]
-    reply = f"المستوى: {level_name}\nالترم: {term_name}\nهل تؤكد؟"
-    sent = await update.message.reply_text(reply, reply_markup=InlineKeyboardMarkup(buttons))
-    info["confirm_msg_id"] = sent.message_id
-
+    buttons = [
+        [
+            InlineKeyboardButton("تأكيد", callback_data="grp_confirm"),
+            InlineKeyboardButton("إلغاء", callback_data="grp_cancel"),
+        ]
+    ]
+    sent = await update.message.reply_text(
+        f"سيتم ربط هذه المجموعة بـ: {level_name} - {term_name}",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+    conv_push(context, sent.message_id)
     return CONFIRM
 
 
@@ -107,59 +111,48 @@ async def insert_group_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
     data = query.data
-    info = context.user_data.get("insert_group")
-    if not info:
-        await query.edit_message_text("انتهت الجلسة.")
-        return ConversationHandler.END
-
-    chat_id = info["chat_id"]
-    bot = context.bot
-
-    if data == "ingrp_confirm":
+    info = context.chat_data.get("insert_group", {})
+    if data == "grp_confirm" and info:
         title = update.effective_chat.title or ""
-        await upsert_group(info["tg_chat_id"], info["level_id"], info["term_id"], title)
-        await query.edit_message_text("تم الحفظ بنجاح.")
-        for key in ("cmd_msg_id", "input_msg_id"):
-            msg_id = info.get(key)
-            if msg_id:
-                try:
-                    await bot.delete_message(chat_id, msg_id)
-                except Exception:
-                    pass
-        context.user_data.pop("insert_group", None)
-        return ConversationHandler.END
-
-    if data == "ingrp_edit":
-        msg_id = info.get("input_msg_id")
-        if msg_id:
-            try:
-                await bot.delete_message(chat_id, msg_id)
-            except Exception:
-                pass
-            info.pop("input_msg_id", None)
-        await query.edit_message_text("أرسل المستوى والترم مرة أخرى.")
-        return ASK_INPUT
-
-    # cancel
-    await query.edit_message_text("تم الإلغاء.")
-    for key in ("cmd_msg_id", "input_msg_id"):
-        msg_id = info.get(key)
-        if msg_id:
-            try:
-                await bot.delete_message(chat_id, msg_id)
-            except Exception:
-                pass
-    context.user_data.pop("insert_group", None)
+        await upsert_group(update.effective_chat.id, info["level_id"], info["term_id"], title)
+        await conv_cleanup(context, context.bot)
+        sent = await update.effective_chat.send_message("تم الربط بنجاح.")
+        try:
+            await asyncio.sleep(5)
+            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
+        except Exception as e:
+            logger.debug("delete failed: %s", e)
+    else:
+        await conv_cleanup(context, context.bot)
+        sent = await update.effective_chat.send_message("تم الإلغاء.")
+        try:
+            await asyncio.sleep(5)
+            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
+        except Exception as e:
+            logger.debug("delete failed: %s", e)
+    context.chat_data.pop("insert_group", None)
     return ConversationHandler.END
 
 
 insert_group_conv = ConversationHandler(
     entry_points=[CommandHandler("insert_group", insert_group_start, filters.ChatType.GROUPS)],
     states={
-        ASK_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, insert_group_received)],
-        CONFIRM: [CallbackQueryHandler(insert_group_confirm, pattern="^ingrp_")],
+        CHOOSING: [CallbackQueryHandler(insert_group_choice, pattern="^grp_")],
+        AWAIT_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, insert_group_received)],
+        CONFIRM: [CallbackQueryHandler(insert_group_confirm, pattern="^grp_")],
     },
     fallbacks=[],
 )
 
-__all__ = ["insert_group_conv"]
+
+async def insert_group_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.effective_message
+    if message:
+        try:
+            await message.delete()
+        except Exception as e:
+            logger.debug("delete failed: %s", e)
+        await update.effective_chat.send_message("هذا أمر خاص بالمجموعات.")
+
+
+__all__ = ["insert_group_conv", "insert_group_private"]

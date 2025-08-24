@@ -1,23 +1,20 @@
 from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
+import logging
+
+from ..config import OWNER_TG_ID
 from ..db import (
     UPLOAD_CONTENT,
     get_admin_with_permissions,
     insert_ingestion,
     attach_material,
-)
-from ..db.materials import (
-    ensure_year_id,
-    ensure_lecturer_id,
-    insert_material,
-)
-from ..db import (
     get_group_id_by_chat,
     get_topic_link,
 )
+from ..db.materials import ensure_year_id, ensure_lecturer_id, insert_material
 from ..parser.hashtags import parse_hashtags
-import logging
 
 
 logger = logging.getLogger(__name__)
@@ -55,8 +52,7 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     admin_info = await get_admin_with_permissions(user.id)
     if admin_info is None:
         logger.warning("User %s is not an admin", user.id)
-        if message:
-            await message.reply_text("المستخدم ليس مشرفًا.")
+        await message.reply_text("المستخدم ليس مشرفًا.")
         return
     admin_id, permissions = admin_info
     if not (permissions & UPLOAD_CONTENT):
@@ -91,25 +87,19 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     subject_id, _, section = topic_link
 
     info = parse_hashtags(tags)
-    logger.debug("category=%s title=%s", info["category"], info["title"])
     category = info["category"]
     title = info["title"]
     lecturer_name = info["lecturer"]
-
-    # ``board_images`` is one of the supported categories and relies on the
-    # extracted title (either from ``category:title`` syntax or remaining
-    # hashtags) to identify the lecture it belongs to.
+    year = info["year"]
+    if year and (not year.isdigit() or len(year) != 4):
+        await message.reply_text("السنة الهجرية غير صحيحة.")
+        return
     if category is None or title is None:
-        logger.warning("Missing category or title in hashtags")
         await message.reply_text("الوسوم تفتقد الفئة أو العنوان.")
         return
 
-    year_id = None
-    if info["year"]:
-        year_id = await ensure_year_id(info["year"])
-    lecturer_id = None
-    if lecturer_name:
-        lecturer_id = await ensure_lecturer_id(lecturer_name)
+    year_id = await ensure_year_id(year) if year else None
+    lecturer_id = await ensure_lecturer_id(lecturer_name) if lecturer_name else None
 
     material_id = await insert_material(
         subject_id,
@@ -126,7 +116,29 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     ingestion_id = await insert_ingestion(message.message_id, admin_id)
     await attach_material(ingestion_id, material_id, "pending")
-    await message.reply_text(f"تم تسجيل العملية برقم {ingestion_id}")
+    await message.reply_text(
+        f"✅ تم الاستلام. رقم العملية: #{ingestion_id}\nسيتم إشعارك بعد المراجعة."
+    )
+
+    summary = (
+        f"المادة: {topic_link[1]}\nالقسم: {section}\nالسنة: {year or '---'}\nالنوع: {category}\nالعنوان: {title}"
+    )
+    buttons = [
+        [
+            InlineKeyboardButton("Approve", callback_data=f"appr:{ingestion_id}"),
+            InlineKeyboardButton("Reject", callback_data=f"rej:{ingestion_id}"),
+        ]
+    ]
+    try:
+        await context.bot.copy_message(
+            chat_id=OWNER_TG_ID,
+            from_chat_id=chat.id,
+            message_id=message.message_id,
+            caption=summary,
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+    except Exception as e:
+        logger.error("Failed to notify approver: %s", e)
 
 
 __all__ = ["ingestion_handler"]

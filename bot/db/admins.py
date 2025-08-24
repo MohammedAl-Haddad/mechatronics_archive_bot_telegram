@@ -2,7 +2,7 @@ import os
 
 import aiosqlite
 
-from bot.config import ADMIN_USER_IDS  # loads environment variables
+from bot.config import ADMIN_USER_IDS, OWNER_TG_ID  # loads environment variables
 from .base import DB_PATH
 
 
@@ -10,18 +10,55 @@ from .base import DB_PATH
 MANAGE_GROUPS = 1 << 0
 UPLOAD_CONTENT = 1 << 1
 APPROVE_CONTENT = 1 << 2
+MANAGE_ADMINS = 1 << 3
 
 PERMISSIONS = {
     MANAGE_GROUPS: "إدارة المجموعات",
     UPLOAD_CONTENT: "رفع المحتوى",
     APPROVE_CONTENT: "مصادقة المحتوى",
+    MANAGE_ADMINS: "إدارة المشرفين",
 }
 
 # Mask representing full access to all permissions
 FULL_ACCESS = (1 << 31) - 1
 
-_owner = os.getenv("OWNER_TG_ID")
-OWNER_TG_ID = int(_owner) if _owner and _owner.strip().isdigit() else None
+
+def is_owner(user_id: int | None) -> bool:
+    return OWNER_TG_ID is not None and user_id == OWNER_TG_ID
+
+
+async def has_perm(user_id: int | None, perm: int) -> bool:
+    if is_owner(user_id):
+        return True
+    if user_id is None:
+        return False
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT permissions_mask FROM admins WHERE tg_user_id=? AND is_active=1",
+            (user_id,),
+        )
+        row = await cur.fetchone()
+    return bool(row and (row[0] & perm))
+
+
+async def ensure_owner_full_perms(owner_id: int | None) -> None:
+    if owner_id is None:
+        return
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            INSERT INTO admins (tg_user_id, name, role, permissions_mask, level_scope, is_active)
+            VALUES (?, 'OWNER', 'OWNER', ?, 'all', 1)
+            ON CONFLICT(tg_user_id) DO UPDATE SET
+                name=excluded.name,
+                role=excluded.role,
+                permissions_mask=excluded.permissions_mask,
+                level_scope=excluded.level_scope,
+                is_active=1
+            """,
+            (owner_id, FULL_ACCESS),
+        )
+        await db.commit()
 
 
 async def list_admins() -> list[tuple[int, str, int, str]]:
@@ -107,7 +144,7 @@ async def get_admin_id_by_tg_user(tg_user_id: int) -> int | None:
 async def is_admin(
     tg_user_id: int, permission: int | None = None, level_id: int | None = None
 ) -> bool:
-    if OWNER_TG_ID is not None and tg_user_id == OWNER_TG_ID:
+    if is_owner(tg_user_id):
         permissions, level_scope = FULL_ACCESS, "all"
     else:
         async with aiosqlite.connect(DB_PATH) as db:
@@ -133,6 +170,7 @@ __all__ = [
     "MANAGE_GROUPS",
     "UPLOAD_CONTENT",
     "APPROVE_CONTENT",
+    "MANAGE_ADMINS",
     "FULL_ACCESS",
     "PERMISSIONS",
     "list_admins",
@@ -142,6 +180,9 @@ __all__ = [
     "remove_admin",
     "get_admin_with_permissions",
     "get_admin_id_by_tg_user",
+    "is_owner",
+    "has_perm",
+    "ensure_owner_full_perms",
     "is_admin",
 ]
 

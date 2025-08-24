@@ -87,6 +87,23 @@ def generate_term_menu_keyboard_dynamic(flags: dict) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
+def build_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
+    keyboard = [
+        ["📚 المستويات", "🗂 الخطة الدراسية"],
+        ["🔧 البرامج الهندسية", " بحث"],
+        ["📡 القنوات والمجموعات", "🆘 مساعدة"],
+        ["📨 تواصل معنا"],
+    ]
+    if is_admin:
+        keyboard.append(["👤 إدارة المشرفين"])
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        one_time_keyboard=True,
+        input_field_placeholder="اختر خيارًا من القائمة  ⬇️",
+    )
+
+
 def generate_subject_sections_keyboard_dynamic(sections: list[str]) -> ReplyKeyboardMarkup:
     """Display available sections for a subject."""
     labels = [SECTION_LABELS[s] for s in sections if s in SECTION_LABELS]
@@ -188,6 +205,7 @@ def generate_lecture_category_menu_keyboard(categories: list[str]) -> ReplyKeybo
 
 
 __all__ = [
+    "build_main_menu",
     "generate_levels_keyboard",
     "generate_terms_keyboard",
     "generate_subjects_keyboard",
