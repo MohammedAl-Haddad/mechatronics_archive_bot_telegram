@@ -1,5 +1,9 @@
+import logging
 from telegram import Update
 from telegram.ext import ContextTypes
+
+
+logger = logging.getLogger(__name__)
 
 
 async def moderation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -28,16 +32,16 @@ async def moderation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     try:
         await message.delete()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("delete failed: %s", e)
 
     try:
         await context.bot.send_message(
             chat_id=user.id,
             text="عذرًا، لا تملك صلاحية النشر في هذه المجموعة.",
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("notify failed: %s", e)
 
 
 __all__ = ["moderation_handler"]
