@@ -1,4 +1,5 @@
 import aiosqlite
+from dataclasses import dataclass
 
 from .base import DB_PATH
 
@@ -80,6 +81,49 @@ async def insert_subject(
 
 async def update_subject_mode(subject_id: int, mode: str) -> None:
     """Update the sections mode for a subject."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE subjects SET sections_mode=? WHERE id=?",
+            (mode, subject_id),
+        )
+        await db.commit()
+
+
+@dataclass
+class Subject:
+    id: int
+    name: str
+    level_id: int
+    term_id: int
+    theory_only: bool
+
+
+async def get_or_create(term_id: int, name: str, level_id: int | None = None) -> Subject:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT id, level_id, sections_mode FROM subjects WHERE term_id=? AND name=?",
+            (term_id, name),
+        )
+        row = await cur.fetchone()
+        if row is None:
+            if level_id is None:
+                raise ValueError("level_id required to create subject")
+            await db.execute(
+                "INSERT INTO subjects (code, name, level_id, term_id, sections_mode) VALUES (?, ?, ?, ?, 'theory_only')",
+                ("AUTO", name, level_id, term_id),
+            )
+            await db.commit()
+            cur = await db.execute(
+                "SELECT id, level_id, sections_mode FROM subjects WHERE term_id=? AND name=?",
+                (term_id, name),
+            )
+            row = await cur.fetchone()
+        subj_id, lvl_id, mode = row
+        return Subject(subj_id, name, lvl_id, term_id, mode == "theory_only")
+
+
+async def set_theory_only(subject_id: int, value: bool) -> None:
+    mode = "theory_only" if value else "theory_discussion_lab"
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE subjects SET sections_mode=? WHERE id=?",

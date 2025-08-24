@@ -9,6 +9,8 @@ from .subjects import (
     get_or_create_term,
     insert_subject,
     update_subject_mode,
+    get_or_create,
+    set_theory_only,
     get_terms_by_level,
     get_subjects_by_level_and_term,
     get_subject_id_by_name,
@@ -41,9 +43,8 @@ from .materials import (
 )
 from .topics import (
     get_group_id_by_chat,
-    get_subject_by_name,
-    get_topic_link,
-    upsert_topic,
+    get_binding,
+    bind,
 )
 from .groups import (
     get_group_info,
@@ -81,7 +82,7 @@ __all__ = [
     'DB_PATH', 'init_db', 'migrate_if_needed',
     'get_levels', 'get_level_id_by_name', 'get_term_id_by_name',
     'insert_level', 'insert_term', 'get_or_create_level', 'get_or_create_term', 'insert_subject',
-    'update_subject_mode',
+    'update_subject_mode', 'get_or_create', 'set_theory_only',
     'get_terms_by_level', 'get_subjects_by_level_and_term', 'get_subject_id_by_name',
     'count_subjects', 'term_feature_flags', 'get_available_sections_for_subject',
     'get_year_id_by_name', 'get_lecturer_id_by_name', 'insert_material',
@@ -92,7 +93,7 @@ __all__ = [
     'get_years_for_subject_section_lecturer', 'get_lecture_materials',
     'get_materials_by_category', 'list_categories_for_subject_section_year',
     'list_categories_for_lecture',
-    'get_group_id_by_chat', 'get_subject_by_name', 'get_topic_link', 'upsert_topic',
+    'get_group_id_by_chat', 'get_binding', 'bind',
     'get_group_info', 'upsert_group',
     'MANAGE_GROUPS', 'UPLOAD_CONTENT', 'APPROVE_CONTENT', 'MANAGE_ADMINS', 'PERMISSIONS',
     'list_admins', 'get_admin', 'add_admin', 'update_admin', 'remove_admin',

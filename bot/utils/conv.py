@@ -2,7 +2,6 @@ import logging
 from telegram.ext import ContextTypes
 
 CONV_MSGS_KEY = "conv_msgs"
-CONV_CHAT_ID_KEY = "conv_chat_id"
 
 
 logger = logging.getLogger(__name__)
@@ -13,16 +12,13 @@ def conv_push(ctx: ContextTypes.DEFAULT_TYPE, msg_id: int) -> None:
     msgs.append(msg_id)
 
 
-async def conv_cleanup(ctx: ContextTypes.DEFAULT_TYPE, bot) -> None:
-    chat_id = ctx.chat_data.get(CONV_CHAT_ID_KEY)
+async def conv_cleanup(ctx: ContextTypes.DEFAULT_TYPE, bot, chat_id: int) -> None:
     msgs = ctx.chat_data.pop(CONV_MSGS_KEY, [])
-    if chat_id is None:
-        return
     for mid in msgs:
         try:
             await bot.delete_message(chat_id, mid)
         except Exception as e:
             logger.debug("delete failed: %s", e)
-    ctx.chat_data.pop(CONV_CHAT_ID_KEY, None)
+
 
 __all__ = ["conv_push", "conv_cleanup"]
