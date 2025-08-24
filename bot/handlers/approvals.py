@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, filters
 
 from ..config import ARCHIVE_CHANNEL_ID
 from ..db import (
@@ -16,6 +16,7 @@ from ..db.materials import update_material_storage
 async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if not user or not await is_admin(user.id, APPROVE_CONTENT):
+        await update.message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
         return
     pending = await list_pending_ingestions()
     if not pending:
@@ -72,7 +73,9 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.edit_message_reply_markup(reply_markup=None)
 
 
-approvals_handler = CommandHandler("approvals", list_pending)
+approvals_handler = CommandHandler(
+    "approvals", list_pending, filters.ChatType.PRIVATE
+)
 approval_callback = CallbackQueryHandler(handle_decision, pattern="^(appr|rej):")
 
 
