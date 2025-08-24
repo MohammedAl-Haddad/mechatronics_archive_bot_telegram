@@ -1,205 +1,240 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler,
-    ConversationHandler,
-    CallbackQueryHandler,
     MessageHandler,
+    CallbackQueryHandler,
+    ConversationHandler,
     ContextTypes,
     filters,
 )
 
 from bot.db import (
-    is_admin,
+    is_owner,
+    has_perm,
     MANAGE_ADMINS,
     list_admins,
-    add_admin,
     get_admin,
+    add_admin,
     update_admin,
     remove_admin,
+    PERMISSIONS,
 )
 from bot.keyboards import build_permissions_keyboard
+from bot.utils.conv import conv_push, conv_cleanup
 
 
-MENU, ADD_ID, ADD_NAME, ADD_PERMS, ADD_LEVEL, EDIT_ID, EDIT_NAME, EDIT_PERMS, EDIT_LEVEL, REMOVE_ID = range(10)
+logger = logging.getLogger(__name__)
+
+MENU, ADD_ID, PERMS, REMOVE_CONFIRM = range(4)
+PAGE_SIZE = 5
+
+
+def _perm_summary(mask: int) -> str:
+    return "".join("✅" if mask & flag else "❌" for flag in PERMISSIONS)
+
+
+async def _send_list(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    page: int = 0,
+    new: bool = False,
+) -> None:
+    admins = await list_admins()
+    total = len(admins)
+    start = page * PAGE_SIZE
+    page_rows = admins[start : start + PAGE_SIZE]
+
+    lines = ["إدارة المشرفين:"]
+    for tg_id, name, mask, _scope in page_rows:
+        lines.append(f"- {name or tg_id} ({tg_id}) {_perm_summary(mask)}")
+    if total > PAGE_SIZE:
+        lines.append("القائمة طويلة — استخدم الأسهم للتنقل.")
+    text = "\n".join(lines)
+
+    keyboard = []
+    for tg_id, name, mask, _ in page_rows:
+        if is_owner(tg_id):
+            keyboard.append([InlineKeyboardButton(f"{name or tg_id}", callback_data="noop")])
+        else:
+            keyboard.append(
+                [
+                    InlineKeyboardButton("✏️ تعديل", callback_data=f"adm_edit:{tg_id}"),
+                    InlineKeyboardButton("🗑️ إزالة", callback_data=f"adm_del:{tg_id}"),
+                ]
+            )
+    nav = []
+    if start > 0:
+        nav.append(InlineKeyboardButton("⬅️", callback_data=f"adm_page:{page - 1}"))
+    if start + PAGE_SIZE < total:
+        nav.append(InlineKeyboardButton("➡️", callback_data=f"adm_page:{page + 1}"))
+    if nav:
+        keyboard.append(nav)
+    keyboard.append(
+        [
+            InlineKeyboardButton("➕ إضافة", callback_data="adm_add"),
+            InlineKeyboardButton("⟳ تحديث", callback_data=f"adm_page:{page}"),
+            InlineKeyboardButton("إغلاق", callback_data="adm_close"),
+        ]
+    )
+    markup = InlineKeyboardMarkup(keyboard)
+
+    if new or not update.callback_query:
+        await update.effective_chat.send_message(text, reply_markup=markup)
+    else:
+        try:
+            await update.callback_query.edit_message_text(text, reply_markup=markup)
+        except Exception as e:  # pragma: no cover - safety
+            logger.debug("edit failed: %s", e)
+            await update.effective_chat.send_message(text, reply_markup=markup)
+    context.user_data["adm_page"] = page
 
 
 async def admins_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    if not user or not await is_admin(user.id, MANAGE_ADMINS):
-        await update.message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
+    if not user or not (is_owner(user.id) or await has_perm(user.id, MANAGE_ADMINS)):
+        await update.effective_message.reply_text("لا تملك صلاحية إدارة المشرفين.")
         return ConversationHandler.END
-
-    rows = await list_admins()
-    lines = ["المشرفون الحاليون:"]
-    for tg_id, name, _mask, _scope in rows:
-        lines.append(f"- {name or tg_id} ({tg_id})")
-    buttons = [
-        [InlineKeyboardButton("➕ إضافة", callback_data="adm_add")],
-        [InlineKeyboardButton("✏️ تعديل", callback_data="adm_edit")],
-        [InlineKeyboardButton("🗑️ إزالة", callback_data="adm_remove")],
-    ]
-    await update.message.reply_text(
-        "\n".join(lines), reply_markup=InlineKeyboardMarkup(buttons)
-    )
+    await _send_list(update, context)
     return MENU
 
 
-async def admins_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def menu_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
     if data == "adm_add":
-        await query.edit_message_text("أرسل معرف المستخدم (tg_user_id):")
+        msg = await query.edit_message_text(
+            "أرسل رقم Telegram ID للمستخدم المراد منحه صلاحيات."
+        )
+        conv_push(context, msg.message_id)
         return ADD_ID
-    if data == "adm_edit":
-        await query.edit_message_text("أرسل معرف المستخدم لتعديله:")
-        return EDIT_ID
-    if data == "adm_remove":
-        await query.edit_message_text("أرسل معرف المستخدم لإزالته:")
-        return REMOVE_ID
-    return ConversationHandler.END
+    if data.startswith("adm_edit:"):
+        tg_id = int(data.split(":", 1)[1])
+        if is_owner(tg_id):
+            await query.answer("لا يمكن تعديل/إزالة مالك البوت.", show_alert=True)
+            return MENU
+        row = await get_admin(tg_id)
+        mask = row[2] if row else 0
+        context.user_data.update({"adm_target": tg_id, "adm_mask": mask, "mode": "edit"})
+        msg = await query.edit_message_text(
+            "حدّد الصلاحيات:", reply_markup=build_permissions_keyboard(mask)
+        )
+        conv_push(context, msg.message_id)
+        return PERMS
+    if data.startswith("adm_del:"):
+        tg_id = int(data.split(":", 1)[1])
+        if is_owner(tg_id):
+            await query.answer("لا يمكن تعديل/إزالة مالك البوت.", show_alert=True)
+            return MENU
+        context.user_data["adm_target"] = tg_id
+        buttons = [[InlineKeyboardButton("نعم", callback_data="rm_yes"), InlineKeyboardButton("لا", callback_data="rm_no")]]
+        msg = await query.edit_message_text(
+            "تأكيد إزالة هذا المشرف؟", reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        conv_push(context, msg.message_id)
+        return REMOVE_CONFIRM
+    if data.startswith("adm_page:"):
+        page = int(data.split(":", 1)[1])
+        await _send_list(update, context, page)
+        return MENU
+    if data == "adm_close":
+        await query.edit_message_text("تم الإغلاق.")
+        return ConversationHandler.END
+    return MENU
 
 
 async def add_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    conv_push(context, update.message.message_id)
     try:
         tg_id = int(update.message.text.strip())
     except ValueError:
-        await update.message.reply_text("معرف غير صالح، حاول مرة أخرى.")
+        sent = await update.message.reply_text("معرف غير صالح، حاول مرة أخرى.")
+        conv_push(context, sent.message_id)
         return ADD_ID
-    context.user_data["new_admin"] = {"tg_user_id": tg_id, "perm_mask": 0}
-    await update.message.reply_text("أرسل اسم المشرف:")
-    return ADD_NAME
+    context.user_data.update({"adm_target": tg_id, "adm_mask": 0, "mode": "add"})
+    msg = await update.message.reply_text(
+        "حدّد الصلاحيات:", reply_markup=build_permissions_keyboard(0)
+    )
+    conv_push(context, msg.message_id)
+    return PERMS
 
 
-async def add_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    info = context.user_data["new_admin"]
-    info["name"] = update.message.text.strip()
-    kb = build_permissions_keyboard(info["perm_mask"])
-    await update.message.reply_text("اختر الصلاحيات:", reply_markup=kb)
-    return ADD_PERMS
-
-
-async def add_perms(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def perms_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    info = context.user_data["new_admin"]
     data = query.data
-    if data.startswith("perm_"):
+    mask = context.user_data.get("adm_mask", 0)
+    if data.startswith("perm_") and data not in ("perm_save", "perm_cancel"):
         flag = int(data.split("_", 1)[1])
-        info["perm_mask"] ^= flag
-        await query.edit_message_reply_markup(
-            build_permissions_keyboard(info["perm_mask"])
-        )
-        return ADD_PERMS
-    if data == "perm_done":
-        await query.edit_message_text("أرسل نطاق المستوى (مثال: all أو رقم المستوى):")
-        return ADD_LEVEL
-    return ConversationHandler.END
+        mask ^= flag
+        context.user_data["adm_mask"] = mask
+        await query.edit_message_reply_markup(build_permissions_keyboard(mask))
+        return PERMS
+    if data == "perm_save":
+        tg_id = context.user_data.get("adm_target")
+        mask = context.user_data.get("adm_mask", 0)
+        mode = context.user_data.get("mode")
+        if mode == "edit":
+            row = await get_admin(tg_id)
+            name = row[1] if row else ""
+            scope = row[3] if row else "all"
+            await update_admin(tg_id, name, mask, scope)
+        else:
+            await add_admin(tg_id, "", mask, "all")
+        await conv_cleanup(context, context.bot, update.effective_chat.id)
+        sent = await update.effective_chat.send_message("تم الحفظ بنجاح.")
+        try:
+            await asyncio.sleep(7)
+            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
+        except Exception as e:
+            logger.debug("delete failed: %s", e)
+        await _send_list(update, context, context.user_data.get("adm_page", 0), new=True)
+        return MENU
+    if data == "perm_cancel":
+        await conv_cleanup(context, context.bot, update.effective_chat.id)
+        await _send_list(update, context, context.user_data.get("adm_page", 0), new=True)
+        return MENU
+    return PERMS
 
 
-async def add_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    info = context.user_data["new_admin"]
-    info["level_scope"] = update.message.text.strip()
-    await add_admin(
-        info["tg_user_id"],
-        info["name"],
-        info["perm_mask"],
-        info["level_scope"],
-    )
-    await update.message.reply_text("تم الحفظ.")
-    context.user_data.pop("new_admin", None)
-    return ConversationHandler.END
-
-
-async def edit_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        tg_id = int(update.message.text.strip())
-    except ValueError:
-        await update.message.reply_text("معرف غير صالح، حاول مرة أخرى.")
-        return EDIT_ID
-    row = await get_admin(tg_id)
-    if row is None:
-        await update.message.reply_text("المشرف غير موجود.")
-        return ConversationHandler.END
-    _tg, name, mask, scope = row
-    context.user_data["edit_admin"] = {
-        "tg_user_id": tg_id,
-        "name": name or "",
-        "perm_mask": mask,
-        "level_scope": scope,
-    }
-    await update.message.reply_text(f"الاسم الحالي: {name or ''}\nأرسل الاسم الجديد:")
-    return EDIT_NAME
-
-
-async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    info = context.user_data["edit_admin"]
-    info["name"] = update.message.text.strip()
-    kb = build_permissions_keyboard(info["perm_mask"])
-    await update.message.reply_text("حدّث الصلاحيات:", reply_markup=kb)
-    return EDIT_PERMS
-
-
-async def edit_perms(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def remove_confirm_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    info = context.user_data["edit_admin"]
-    data = query.data
-    if data.startswith("perm_"):
-        flag = int(data.split("_", 1)[1])
-        info["perm_mask"] ^= flag
-        await query.edit_message_reply_markup(
-            build_permissions_keyboard(info["perm_mask"])
-        )
-        return EDIT_PERMS
-    if data == "perm_done":
-        await query.edit_message_text(
-            f"النطاق الحالي: {info['level_scope']}\nأرسل النطاق الجديد:"
-        )
-        return EDIT_LEVEL
-    return ConversationHandler.END
-
-
-async def edit_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    info = context.user_data["edit_admin"]
-    info["level_scope"] = update.message.text.strip()
-    await update_admin(
-        info["tg_user_id"],
-        info["name"],
-        info["perm_mask"],
-        info["level_scope"],
-    )
-    await update.message.reply_text("تم التحديث.")
-    context.user_data.pop("edit_admin", None)
-    return ConversationHandler.END
-
-
-async def remove_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        tg_id = int(update.message.text.strip())
-    except ValueError:
-        await update.message.reply_text("معرف غير صالح، حاول مرة أخرى.")
-        return REMOVE_ID
-    await remove_admin(tg_id)
-    await update.message.reply_text("تمت الإزالة.")
-    return ConversationHandler.END
+    if query.data == "rm_yes":
+        tg_id = context.user_data.get("adm_target")
+        if tg_id and not is_owner(tg_id):
+            await remove_admin(tg_id)
+        await conv_cleanup(context, context.bot, update.effective_chat.id)
+        sent = await update.effective_chat.send_message("تمت الإزالة.")
+        try:
+            await asyncio.sleep(7)
+            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
+        except Exception as e:
+            logger.debug("delete failed: %s", e)
+        await _send_list(update, context, context.user_data.get("adm_page", 0), new=True)
+        return MENU
+    await conv_cleanup(context, context.bot, update.effective_chat.id)
+    await _send_list(update, context, context.user_data.get("adm_page", 0), new=True)
+    return MENU
 
 
 admins_conv = ConversationHandler(
-    entry_points=[CommandHandler("admins", admins_start, filters.ChatType.PRIVATE)],
+    entry_points=[
+        CommandHandler("admins", admins_start, filters.ChatType.PRIVATE),
+        MessageHandler(
+            filters.ChatType.PRIVATE & filters.Regex("^👤 إدارة المشرفين$"),
+            admins_start,
+        ),
+    ],
     states={
-        MENU: [CallbackQueryHandler(admins_menu, pattern="^adm_")],
+        MENU: [CallbackQueryHandler(menu_cb, pattern="^adm_")],
         ADD_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_id)],
-        ADD_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_name)],
-        ADD_PERMS: [CallbackQueryHandler(add_perms, pattern="^perm_")],
-        ADD_LEVEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_level)],
-        EDIT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_id)],
-        EDIT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_name)],
-        EDIT_PERMS: [CallbackQueryHandler(edit_perms, pattern="^perm_")],
-        EDIT_LEVEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_level)],
-        REMOVE_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, remove_id)],
+        PERMS: [CallbackQueryHandler(perms_cb, pattern="^perm_")],
+        REMOVE_CONFIRM: [CallbackQueryHandler(remove_confirm_cb, pattern="^rm_")],
     },
     fallbacks=[],
 )

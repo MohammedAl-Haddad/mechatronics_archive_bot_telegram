@@ -9,7 +9,12 @@ def build_permissions_keyboard(mask: int) -> InlineKeyboardMarkup:
     for flag, label in PERMISSIONS.items():
         prefix = "✅" if mask & flag else "❌"
         buttons.append([InlineKeyboardButton(f"{prefix} {label}", callback_data=f"perm_{flag}")])
-    buttons.append([InlineKeyboardButton("تم", callback_data="perm_done")])
+    buttons.append(
+        [
+            InlineKeyboardButton("حفظ", callback_data="perm_save"),
+            InlineKeyboardButton("إلغاء", callback_data="perm_cancel"),
+        ]
+    )
     return InlineKeyboardMarkup(buttons)
 
 
