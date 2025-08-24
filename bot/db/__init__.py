@@ -1,24 +1,36 @@
-"""
-Unified DB package exports (imports only; no I/O).
-Allows:
-  - import bot.db
-  - from bot.db import admins, topics, subjects, materials, years, lecturers
-"""
+"""Unified DB package with convenient re-exports."""
+
 from __future__ import annotations
 
-# Re-export submodules explicitly (no side effects here)
-from . import admins
-from . import topics
-from . import subjects
-from . import materials
-from . import years
-from . import lecturers
+from importlib import import_module
 
-__all__ = [
+_SUBMODULES = [
     "admins",
     "topics",
     "subjects",
     "materials",
     "years",
     "lecturers",
+    "groups",
+    "ingestions",
+    "term_resources",
 ]
+
+__all__ = ["init_db", "ensure_owner_full_perms", "is_owner", "has_perm", "MANAGE_ADMINS"]
+
+for _name in _SUBMODULES:
+    _mod = import_module(f"{__name__}.{_name}")
+    names = getattr(_mod, "__all__", dir(_mod))
+    for _attr in names:
+        if _attr.startswith("_"):
+            continue
+        globals()[_attr] = getattr(_mod, _attr)
+        if _attr not in __all__:
+            __all__.append(_attr)
+
+from .base import init_db
+from .admins import ensure_owner_full_perms, is_owner, has_perm, MANAGE_ADMINS
+from .years import get_or_create as get_or_create_year
+from .lecturers import get_or_create as get_or_create_lecturer
+
+__all__.extend(["get_or_create_year", "get_or_create_lecturer"])
