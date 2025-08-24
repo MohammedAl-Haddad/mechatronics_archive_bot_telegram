@@ -64,6 +64,7 @@ python -m bot.main
 ## دليل المستخدم
 
 - [ربط المجموعات](docs/group-linking.md)
+- [رفع المحتوى](docs/content-upload.md)
 
 ## الاختبار
 
