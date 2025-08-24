@@ -11,7 +11,7 @@ from ..db import (
     insert_ingestion,
     attach_material,
     get_group_id_by_chat,
-    get_topic_link,
+    get_binding,
 )
 from ..db.materials import ensure_year_id, ensure_lecturer_id, insert_material
 from ..parser.hashtags import parse_hashtags, extract_hijri_year
@@ -71,17 +71,17 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         logger.warning("Group info not found for chat %s", chat.id)
         await message.reply_text("المجموعة غير معروفة.")
         return
-    group_id, _, _ = group_info
-
-    topic_link = await get_topic_link(group_id, thread_id)
-    logger.debug("topic_link=%s", topic_link)
-    if topic_link is None:
+    binding = await get_binding(chat.id, thread_id)
+    logger.debug("binding=%s", binding)
+    if binding is None:
         logger.warning(
-            "Topic link not found for group %s thread %s", group_id, thread_id
+            "Topic link not found for chat %s thread %s", chat.id, thread_id
         )
         await message.reply_text("لم يتم العثور على رابط الموضوع.")
         return
-    subject_id, _, section = topic_link
+    subject_id = binding["subject_id"]
+    section = binding["section"]
+    subject_name = binding["subject_name"]
 
     info = parse_hashtags(tags)
     category = info["category"]
@@ -114,7 +114,7 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     )
 
     summary = (
-        f"المادة: {topic_link[1]}\nالقسم: {section}\nالسنة: {year or '---'}\nالنوع: {category}\nالعنوان: {title}"
+        f"المادة: {subject_name}\nالقسم: {section}\nالسنة: {year or '---'}\nالنوع: {category}\nالعنوان: {title}"
     )
     buttons = [
         [

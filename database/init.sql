@@ -40,6 +40,9 @@ ON subjects(level_id);
 CREATE INDEX IF NOT EXISTS idx_subjects_term
 ON subjects(term_id);
 
+CREATE INDEX IF NOT EXISTS idx_subjects_term_name
+ON subjects(term_id, name);
+
 -- سنوات (هجري/ميلادي أو صيغة مثل 2024-2025)
 CREATE TABLE IF NOT EXISTS years (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
