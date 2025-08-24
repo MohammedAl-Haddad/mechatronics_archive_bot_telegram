@@ -98,12 +98,14 @@ async def get_material_source(
 
 
 async def insert_year(name: str):
+    """Insert a new year record if it does not already exist."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("INSERT OR IGNORE INTO years (name) VALUES (?)", (name,))
         await db.commit()
 
 
 async def insert_lecturer(name: str, role: str = "lecturer"):
+    """Insert a lecturer with a *role* if it does not already exist."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "INSERT OR IGNORE INTO lecturers (name, role) VALUES (?, ?)",
@@ -113,6 +115,7 @@ async def insert_lecturer(name: str, role: str = "lecturer"):
 
 
 async def ensure_year_id(name: str) -> int:
+    """Return the id for *name*, inserting a new year if necessary."""
     _id = await get_year_id_by_name(name)
     if _id is not None:
         return _id
@@ -124,6 +127,7 @@ async def ensure_year_id(name: str) -> int:
 
 
 async def ensure_lecturer_id(name: str, role: str = "lecturer") -> int:
+    """Return the id for *name*, inserting a new lecturer if needed."""
     _id = await get_lecturer_id_by_name(name)
     if _id is not None:
         return _id
