@@ -32,5 +32,6 @@ from .base import init_db
 from .admins import ensure_owner_full_perms, is_owner, has_perm, MANAGE_ADMINS
 from .years import get_or_create as get_or_create_year
 from .lecturers import get_or_create as get_or_create_lecturer
+from .subjects import get_or_create as get_or_create_subject
 
-__all__.extend(["get_or_create_year", "get_or_create_lecturer"])
+__all__.extend(["get_or_create_year", "get_or_create_lecturer", "get_or_create_subject"])

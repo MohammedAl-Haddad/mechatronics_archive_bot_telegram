@@ -17,8 +17,8 @@ from bot.db import (
     get_group_id_by_chat,
     get_binding,
     bind,
-    get_or_create,
     set_theory_only,
+    get_or_create_subject,
 )
 from bot.utils.conv import conv_push, conv_cleanup
 from bot.utils.telegram import send_ephemeral
@@ -178,7 +178,7 @@ async def insert_sub_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
             context.chat_data.pop("insert_sub", None)
             return ConversationHandler.END
         _, level_id, term_id = group_info
-        subject = await get_or_create(term_id, info["subject_name"], level_id=level_id)
+        subject = await get_or_create_subject(term_id, info["subject_name"], level_id=level_id)
         await set_theory_only(subject.id, info.get("theory_only", False))
         await bind(chat.id, info["thread_id"], subject.id, info["section"])
         logger.info(
