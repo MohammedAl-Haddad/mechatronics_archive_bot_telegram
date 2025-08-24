@@ -34,6 +34,12 @@ CREATE TABLE IF NOT EXISTS subjects (
     FOREIGN KEY (term_id) REFERENCES terms(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_subjects_level
+ON subjects(level_id);
+
+CREATE INDEX IF NOT EXISTS idx_subjects_term
+ON subjects(term_id);
+
 -- سنوات (هجري/ميلادي أو صيغة مثل 2024-2025)
 CREATE TABLE IF NOT EXISTS years (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,6 +75,12 @@ CREATE TABLE IF NOT EXISTS groups (
     FOREIGN KEY (term_id) REFERENCES terms(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_groups_level
+ON groups(level_id);
+
+CREATE INDEX IF NOT EXISTS idx_groups_term
+ON groups(term_id);
+
 -- المواضيع داخل المجموعات
 CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,6 +96,9 @@ CREATE TABLE IF NOT EXISTS topics (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_topics_chat
 ON topics(group_id, tg_topic_id);
 
+CREATE INDEX IF NOT EXISTS idx_topics_subject
+ON topics(subject_id);
+
 -- عمليات الإدخال/الرفع
 CREATE TABLE IF NOT EXISTS ingestions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,6 +110,12 @@ CREATE TABLE IF NOT EXISTS ingestions (
     FOREIGN KEY (material_id) REFERENCES materials(id),
     FOREIGN KEY (admin_id) REFERENCES admins(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_ingestions_material
+ON ingestions(material_id);
+
+CREATE INDEX IF NOT EXISTS idx_ingestions_admin
+ON ingestions(admin_id);
 
 -- مواد تعليمية مرتبطة بالمادة + القسم + تصنيف المحتوى
 CREATE TABLE IF NOT EXISTS materials (
@@ -122,3 +143,15 @@ CREATE TABLE IF NOT EXISTS materials (
     FOREIGN KEY (lecturer_id) REFERENCES lecturers(id),
     FOREIGN KEY (created_by_admin_id) REFERENCES admins(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_materials_subject
+ON materials(subject_id);
+
+CREATE INDEX IF NOT EXISTS idx_materials_year
+ON materials(year_id);
+
+CREATE INDEX IF NOT EXISTS idx_materials_lecturer
+ON materials(lecturer_id);
+
+CREATE INDEX IF NOT EXISTS idx_materials_admin
+ON materials(created_by_admin_id);
