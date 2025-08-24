@@ -4,15 +4,18 @@ from .base import DB_PATH
 
 
 async def insert_ingestion(
-    tg_message_id: int, admin_id: int, status: str = "pending",
+    tg_message_id: int,
+    admin_id: int,
+    status: str = "pending",
+    action: str = "add",
 ) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             """
-            INSERT INTO ingestions (tg_message_id, admin_id, status)
-            VALUES (?, ?, ?)
+            INSERT INTO ingestions (tg_message_id, admin_id, status, action)
+            VALUES (?, ?, ?, ?)
             """,
-            (tg_message_id, admin_id, status),
+            (tg_message_id, admin_id, status, action),
         )
         await db.commit()
         return cur.lastrowid
@@ -29,13 +32,13 @@ async def attach_material(
         await db.commit()
 
 
-async def list_pending_ingestions() -> list[tuple[int, int, int]]:
-    """Return pending ingestions with source message identifiers."""
+async def list_pending_ingestions() -> list[tuple[int, int, int, str]]:
+    """Return pending ingestions with source identifiers and action."""
 
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             """
-            SELECT i.id, m.source_chat_id, m.source_message_id
+            SELECT i.id, m.source_chat_id, i.tg_message_id, i.action
             FROM ingestions i
             JOIN materials m ON m.id = i.material_id
             WHERE i.status='pending'
@@ -47,13 +50,15 @@ async def list_pending_ingestions() -> list[tuple[int, int, int]]:
 
 async def get_ingestion_material(
     ingestion_id: int,
-) -> tuple[int, int, int] | None:
-    """Fetch material information linked to *ingestion_id*."""
+) -> tuple[int, int, int, int, str, int | None, int | None] | None:
+    """Fetch material and ingestion details for *ingestion_id*."""
 
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             """
-            SELECT m.id, m.source_chat_id, m.source_message_id
+            SELECT m.id, m.source_chat_id, m.source_message_id,
+                   i.tg_message_id, i.action,
+                   m.tg_storage_chat_id, m.tg_storage_msg_id
             FROM ingestions i
             JOIN materials m ON m.id = i.material_id
             WHERE i.id=?
@@ -61,7 +66,15 @@ async def get_ingestion_material(
             (ingestion_id,),
         )
         row = await cur.fetchone()
-        return (row[0], row[1], row[2]) if row else None
+        return (
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+            row[6],
+        ) if row else None
 
 
 async def update_ingestion_status(ingestion_id: int, status: str) -> None:

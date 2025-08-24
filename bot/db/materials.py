@@ -31,6 +31,7 @@ async def insert_material(
     lecturer_id: int | None = None,
     tg_storage_chat_id: int | None = None,
     tg_storage_msg_id: int | None = None,
+    file_unique_id: str | None = None,
     source_chat_id: int | None = None,
     source_topic_id: int | None = None,
     source_message_id: int | None = None,
@@ -41,10 +42,10 @@ async def insert_material(
             """
             INSERT INTO materials (
                 subject_id, section, category, title, url, year_id, lecturer_id,
-                tg_storage_chat_id, tg_storage_msg_id, source_chat_id,
+                tg_storage_chat_id, tg_storage_msg_id, file_unique_id, source_chat_id,
                 source_topic_id, source_message_id, created_by_admin_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 subject_id,
@@ -56,6 +57,7 @@ async def insert_material(
                 lecturer_id,
                 tg_storage_chat_id,
                 tg_storage_msg_id,
+                file_unique_id,
                 source_chat_id,
                 source_topic_id,
                 source_message_id,
@@ -67,12 +69,15 @@ async def insert_material(
 
 
 async def update_material_storage(
-    material_id: int, chat_id: int, msg_id: int
+    material_id: int,
+    chat_id: int,
+    msg_id: int,
+    file_unique_id: str | None = None,
 ):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "UPDATE materials SET tg_storage_chat_id=?, tg_storage_msg_id=? WHERE id=?",
-            (chat_id, msg_id, material_id),
+            "UPDATE materials SET tg_storage_chat_id=?, tg_storage_msg_id=?, file_unique_id=? WHERE id=?",
+            (chat_id, msg_id, file_unique_id, material_id),
         )
         await db.commit()
 
@@ -137,6 +142,36 @@ async def ensure_lecturer_id(name: str, role: str = "lecturer") -> int:
     if _id is None:
         raise RuntimeError(f"Failed to create lecturer: {name}")
     return _id
+
+
+async def find_exact(
+    subject_id: int,
+    section: str,
+    category: str,
+    title: str,
+    *,
+    year_id: int | None = None,
+    lecturer_id: int | None = None,
+) -> tuple[int] | None:
+    """Return material id matching all provided attributes exactly."""
+    q = (
+        "SELECT id FROM materials WHERE subject_id=? AND section=? "
+        "AND category=? AND title=?"
+    )
+    params: list = [subject_id, section, category, title]
+    if year_id is None:
+        q += " AND year_id IS NULL"
+    else:
+        q += " AND year_id=?"
+        params.append(year_id)
+    if lecturer_id is None:
+        q += " AND lecturer_id IS NULL"
+    else:
+        q += " AND lecturer_id=?"
+        params.append(lecturer_id)
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(q, tuple(params))
+        return await cur.fetchone()
 # -----------------------------------------------------------------------------
 # Filters for years/lecturers/categories
 # -----------------------------------------------------------------------------

@@ -20,6 +20,7 @@ from .handlers import (
     insert_sub_conv,
     insert_sub_private,
     ingestion_handler,
+    duplicate_callback,
     insert_group_conv,
     insert_group_private,
     admins_conv,
@@ -72,6 +73,7 @@ def main():
     app.add_handler(admins_conv)
     app.add_handler(approvals_handler)
     app.add_handler(approval_callback)
+    app.add_handler(duplicate_callback)
     app.add_handler(
         MessageHandler(filters.ALL & filters.ChatType.GROUPS, moderation_handler),
         group=-1,

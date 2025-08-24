@@ -1,8 +1,9 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, CallbackQueryHandler
 
 import logging
 import re
+import asyncio
 
 from ..config import OWNER_TG_ID
 from ..db import (
@@ -13,7 +14,12 @@ from ..db import (
     get_group_id_by_chat,
     get_binding,
 )
-from ..db.materials import ensure_year_id, ensure_lecturer_id, insert_material
+from ..db.materials import (
+    ensure_year_id,
+    ensure_lecturer_id,
+    insert_material,
+    find_exact,
+)
 from ..parser.hashtags import parse_hashtags, extract_hijri_year
 
 
@@ -94,6 +100,46 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     year_id = await ensure_year_id(str(year)) if year else None
     lecturer_id = await ensure_lecturer_id(lecturer_name) if lecturer_name else None
 
+    existing = await find_exact(
+        subject_id,
+        section,
+        category,
+        title,
+        year_id=year_id,
+        lecturer_id=lecturer_id,
+    )
+    if existing:
+        ctx = context.user_data.setdefault("replace_ctx", {})
+        ctx[message.message_id] = {
+            "old_material_id": existing[0],
+            "chat_id": chat.id,
+            "admin_id": admin_id,
+            "subject_name": subject_name,
+            "section": section,
+            "category": category,
+            "title": title,
+            "year": year,
+            "year_id": year_id,
+            "lecturer_id": lecturer_id,
+            "lecturer_name": lecturer_name,
+        }
+        buttons = [
+            [
+                InlineKeyboardButton(
+                    "استبدال",
+                    callback_data=f"dup:rep:{message.message_id}:{existing[0]}",
+                ),
+                InlineKeyboardButton(
+                    "إلغاء", callback_data=f"dup:cancel:{message.message_id}"
+                ),
+            ]
+        ]
+        await message.reply_text(
+            "هذا الملف مرفوع من قبل لنفس المحاضرة/السنة/المحاضر.",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+        return
+
     material_id = await insert_material(
         subject_id,
         section,
@@ -101,6 +147,7 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         title,
         year_id=year_id,
         lecturer_id=lecturer_id,
+        file_unique_id=None,
         source_chat_id=chat.id,
         source_topic_id=thread_id,
         source_message_id=message.message_id,
@@ -134,5 +181,74 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         logger.error("Failed to notify approver: %s", e)
 
 
-__all__ = ["ingestion_handler"]
+async def _delete_later(bot, chat_id: int, msg_id: int, delay: int = 7):
+    await asyncio.sleep(delay)
+    try:
+        await bot.delete_message(chat_id, msg_id)
+    except Exception:
+        pass
+
+
+async def handle_duplicate_decision(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    _, action, msg_id, *rest = query.data.split(":")
+    msg_id = int(msg_id)
+    ctx = context.user_data.get("replace_ctx", {})
+    data = ctx.get(msg_id)
+    if data is None:
+        await query.edit_message_text("انتهت صلاحية الطلب.")
+        return
+    if action == "cancel":
+        ctx.pop(msg_id, None)
+        await query.edit_message_text("تم الإلغاء.")
+        context.application.create_task(
+            _delete_later(context.bot, query.message.chat_id, query.message.message_id)
+        )
+        return
+    old_material_id = data["old_material_id"]
+    admin_id = data["admin_id"]
+    ingestion_id = await insert_ingestion(msg_id, admin_id, action="replace")
+    await attach_material(ingestion_id, old_material_id, "pending")
+    await context.bot.send_message(
+        chat_id=data["chat_id"],
+        text=(
+            f"✅ تم الاستلام. رقم العملية: #{ingestion_id}\nسيتم إشعارك بعد المراجعة."
+        ),
+        reply_to_message_id=msg_id,
+    )
+    summary = (
+        "طلب استبدال ملف مرفوع سابقًا\n"
+        f"المادة: {data['subject_name']}\nالقسم: {data['section']}\n"
+        f"السنة: {data['year'] or '---'}\nالنوع: {data['category']}\nالعنوان: {data['title']}"
+    )
+    buttons = [
+        [
+            InlineKeyboardButton(
+                "Approve استبدال", callback_data=f"appr:{ingestion_id}"
+            ),
+            InlineKeyboardButton("Reject", callback_data=f"rej:{ingestion_id}"),
+        ]
+    ]
+    try:
+        await context.bot.copy_message(
+            chat_id=OWNER_TG_ID,
+            from_chat_id=data["chat_id"],
+            message_id=msg_id,
+            caption=summary,
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+    except Exception as e:
+        logger.error("Failed to notify approver: %s", e)
+    ctx.pop(msg_id, None)
+
+
+duplicate_callback = CallbackQueryHandler(
+    handle_duplicate_decision, pattern=r"^dup:(rep|cancel):"
+)
+
+
+__all__ = ["ingestion_handler", "duplicate_callback"]
 
