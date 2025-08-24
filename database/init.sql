@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS ingestions (
     status TEXT NOT NULL,
     tg_message_id INTEGER,
     admin_id INTEGER,
+    action TEXT NOT NULL DEFAULT 'add',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (material_id) REFERENCES materials(id),
     FOREIGN KEY (admin_id) REFERENCES admins(id)
@@ -136,6 +137,7 @@ CREATE TABLE IF NOT EXISTS materials (
     lecturer_id INTEGER,      -- اختياري
     tg_storage_chat_id INTEGER,
     tg_storage_msg_id INTEGER,
+    file_unique_id TEXT,
     source_chat_id INTEGER,
     source_topic_id INTEGER,
     source_message_id INTEGER,
