@@ -1,109 +1,24 @@
-from .base import DB_PATH, init_db, migrate_if_needed
-from .subjects import (
-    get_levels,
-    get_level_id_by_name,
-    get_term_id_by_name,
-    insert_level,
-    insert_term,
-    get_or_create_level,
-    get_or_create_term,
-    insert_subject,
-    update_subject_mode,
-    get_or_create,
-    set_theory_only,
-    get_terms_by_level,
-    get_subjects_by_level_and_term,
-    get_subject_id_by_name,
-    count_subjects,
-    term_feature_flags,
-    get_available_sections_for_subject,
-)
-from .materials import (
-    get_year_id_by_name,
-    get_lecturer_id_by_name,
-    insert_material,
-    update_material_storage,
-    get_material_source,
-    insert_year,
-    insert_lecturer,
-    ensure_year_id,
-    ensure_lecturer_id,
-    get_years_for_subject_section,
-    get_lecturers_for_subject_section,
-    has_lecture_category,
-    list_lecture_titles,
-    list_lecture_titles_by_year,
-    list_lecture_titles_by_lecturer,
-    list_lecture_titles_by_lecturer_year,
-    get_years_for_subject_section_lecturer,
-    get_lecture_materials,
-    get_materials_by_category,
-    list_categories_for_subject_section_year,
-    list_categories_for_lecture,
-)
-from .years import get_or_create as get_or_create_year
-from .lecturers import get_or_create as get_or_create_lecturer
-from .term_resources import insert_term_resource, get_latest_term_resource
-from .topics import (
-    get_group_id_by_chat,
-    get_binding,
-    bind,
-)
-from .groups import (
-    get_group_info,
-    upsert_group,
-)
-from .admins import (
-    MANAGE_GROUPS,
-    UPLOAD_CONTENT,
-    APPROVE_CONTENT,
-    MANAGE_ADMINS,
-    PERMISSIONS,
-    list_admins,
-    get_admin,
-    add_admin,
-    update_admin,
-    remove_admin,
-    get_admin_id_by_tg_user,
-    get_admin_with_permissions,
-    is_owner,
-    has_perm,
-    ensure_owner_full_perms,
-    is_admin,
-)
-from .ingestions import (
-    insert_ingestion,
-    attach_material,
-    list_pending_ingestions,
-    get_ingestion_material,
-    update_ingestion_status,
-    delete_ingestion,
-    delete_old_pending_ingestions,
-)
+"""
+Unified DB package exports (imports only; no I/O).
+Allows:
+  - import bot.db
+  - from bot.db import admins, topics, subjects, materials, years, lecturers
+"""
+from __future__ import annotations
+
+# Re-export submodules explicitly (no side effects here)
+from . import admins
+from . import topics
+from . import subjects
+from . import materials
+from . import years
+from . import lecturers
 
 __all__ = [
-    'DB_PATH', 'init_db', 'migrate_if_needed',
-    'get_levels', 'get_level_id_by_name', 'get_term_id_by_name',
-    'insert_level', 'insert_term', 'get_or_create_level', 'get_or_create_term', 'insert_subject',
-    'update_subject_mode', 'get_or_create', 'set_theory_only',
-    'get_terms_by_level', 'get_subjects_by_level_and_term', 'get_subject_id_by_name',
-    'count_subjects', 'term_feature_flags', 'get_available_sections_for_subject',
-    'get_year_id_by_name', 'get_lecturer_id_by_name', 'insert_material',
-    'update_material_storage', 'get_material_source', 'insert_year', 'insert_lecturer', 'ensure_year_id', 'ensure_lecturer_id',
-    'get_years_for_subject_section', 'get_lecturers_for_subject_section',
-    'has_lecture_category', 'list_lecture_titles', 'list_lecture_titles_by_year',
-    'list_lecture_titles_by_lecturer', 'list_lecture_titles_by_lecturer_year',
-    'get_years_for_subject_section_lecturer', 'get_lecture_materials',
-    'get_materials_by_category', 'list_categories_for_subject_section_year',
-    'list_categories_for_lecture',
-    'get_or_create_year', 'get_or_create_lecturer',
-    'insert_term_resource', 'get_latest_term_resource',
-    'get_group_id_by_chat', 'get_binding', 'bind',
-    'get_group_info', 'upsert_group',
-    'MANAGE_GROUPS', 'UPLOAD_CONTENT', 'APPROVE_CONTENT', 'MANAGE_ADMINS', 'PERMISSIONS',
-    'list_admins', 'get_admin', 'add_admin', 'update_admin', 'remove_admin',
-    'get_admin_id_by_tg_user', 'get_admin_with_permissions', 'is_owner', 'has_perm', 'ensure_owner_full_perms', 'is_admin',
-    'insert_ingestion', 'attach_material', 'list_pending_ingestions',
-    'get_ingestion_material', 'update_ingestion_status', 'delete_ingestion',
-    'delete_old_pending_ingestions',
+    "admins",
+    "topics",
+    "subjects",
+    "materials",
+    "years",
+    "lecturers",
 ]
