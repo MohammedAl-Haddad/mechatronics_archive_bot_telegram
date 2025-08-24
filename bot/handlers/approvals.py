@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, filters
 
 from ..config import ARCHIVE_CHANNEL_ID
 from ..db import (
@@ -72,7 +72,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.edit_message_reply_markup(reply_markup=None)
 
 
-approvals_handler = CommandHandler("approvals", list_pending)
+approvals_handler = CommandHandler("approvals", list_pending, filters.ChatType.PRIVATE)
 approval_callback = CallbackQueryHandler(handle_decision, pattern="^(appr|rej):")
 
 

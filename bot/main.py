@@ -18,10 +18,8 @@ from .handlers import (
     start,
     echo_handler,
     insert_sub_conv,
-    insert_sub_private,
     ingestion_handler,
     insert_group_conv,
-    insert_group_private,
     admins_conv,
     approvals_handler,
     approval_callback,
@@ -58,12 +56,10 @@ def main():
     loop.run_until_complete(ensure_owner_full_perms(OWNER_TG_ID))
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("start", start, filters.ChatType.PRIVATE))
     app.add_handler(insert_group_conv)
-    app.add_handler(CommandHandler("insert_group", insert_group_private, filters.ChatType.PRIVATE))
     app.add_handler(admins_conv)
     app.add_handler(insert_sub_conv)
-    app.add_handler(CommandHandler("insert_sub", insert_sub_private, filters.ChatType.PRIVATE))
     app.add_handler(approvals_handler)
     app.add_handler(approval_callback)
     app.add_handler(
@@ -93,6 +89,9 @@ def main():
 
     app.job_queue.run_daily(purge_temp_archives, time=time(hour=0, minute=0))
 
+    print(
+        "🔧 modes: /start[priv], /insert_group[group], /insert_sub[group], /approvals[priv], /admins[priv], unknown-text[priv], ingestion[group]"
+    )
     print("✅ Bot is running...")
     app.run_polling()
 

@@ -37,9 +37,7 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     message = update.effective_message
     tags = _extract_hashtags(update)
     if not tags:
-        logger.warning("No hashtags found")
-        if message:
-            await message.reply_text("لم يتم العثور على وسوم.")
+        logger.debug("No hashtags found")
         return
 
     user = update.effective_user
