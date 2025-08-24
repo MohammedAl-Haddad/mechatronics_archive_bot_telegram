@@ -200,6 +200,10 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --------------------------------------------------------------------------
 async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if not chat or chat.type != "private":
+        return
+
     text = update.message.text if update.message else ""
     nav = NavigationState(context.user_data)
 

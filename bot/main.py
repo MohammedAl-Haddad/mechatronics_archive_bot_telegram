@@ -79,13 +79,7 @@ def main():
     app.add_handler(
         MessageHandler(
             filters.ChatType.GROUPS
-            & (
-                filters.Document.ALL
-                | filters.PHOTO
-                | filters.VIDEO
-                | filters.AUDIO
-                | filters.TEXT
-            )
+            & (filters.Regex("#") | filters.CaptionRegex("#"))
             & ~filters.COMMAND,
             ingestion_handler,
         ),
@@ -108,6 +102,7 @@ def main():
                 "  /insert_sub -> groups",
                 "  /approvals -> private",
                 "  /admins -> private",
+                "  ingestion (#) -> groups",
                 "  unknown-text -> private only",
             ]
         )
