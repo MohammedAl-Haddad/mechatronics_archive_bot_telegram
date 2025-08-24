@@ -1,4 +1,5 @@
 import logging
+from telegram import Message
 from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,29 @@ def build_archive_link(archive_chat_id: int, message_id: int, username: str | No
     return f"https://t.me/c/{internal_id}/{message_id}"
 
 
+def get_file_unique_id_from_message(msg: Message | None) -> str | None:
+    """Extract ``file_unique_id`` from *msg* if present.
+
+    The helper gracefully handles ``None`` and different media types supported by
+    Telegram. ``None`` is returned when no file-based media is found.
+    """
+    if not msg:
+        return None
+    if msg.document:
+        return msg.document.file_unique_id
+    if msg.photo:
+        return msg.photo[-1].file_unique_id
+    if msg.video:
+        return msg.video.file_unique_id
+    if msg.audio:
+        return msg.audio.file_unique_id
+    if msg.voice:
+        return msg.voice.file_unique_id
+    if msg.animation:
+        return msg.animation.file_unique_id
+    return None
+
+
 async def send_ephemeral(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
@@ -39,4 +63,8 @@ async def send_ephemeral(
     return msg
 
 
-__all__ = ["build_archive_link", "send_ephemeral"]
+__all__ = [
+    "build_archive_link",
+    "send_ephemeral",
+    "get_file_unique_id_from_message",
+]

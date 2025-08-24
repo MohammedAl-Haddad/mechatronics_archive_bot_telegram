@@ -13,21 +13,12 @@ from ..db import (
     update_ingestion_status,
 )
 from ..db.materials import update_material_storage
+from ..utils.telegram import (
+    get_file_unique_id_from_message as _get_file_unique_id_from_message,  # noqa: F401
+)
 
 
 logger = logging.getLogger("bot.approvals")
-
-
-def _get_file_unique_id(msg) -> str | None:
-    if msg.document:
-        return msg.document.file_unique_id
-    if msg.audio:
-        return msg.audio.file_unique_id
-    if msg.video:
-        return msg.video.file_unique_id
-    if msg.photo:
-        return msg.photo[-1].file_unique_id
-    return None
 
 async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -72,6 +63,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         src_msg_id,
         new_msg_id,
         action_type,
+        file_unique_id,
         storage_chat_id,
         storage_msg_id,
     ) = info
@@ -82,10 +74,15 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 from_chat_id=src_chat_id,
                 message_id=new_msg_id,
             )
-            file_id = _get_file_unique_id(copied)
             await update_material_storage(
-                material_id, ARCHIVE_CHANNEL_ID, copied.message_id, file_id
+                material_id, ARCHIVE_CHANNEL_ID, copied.message_id, file_unique_id
             )
+            if file_unique_id:
+                logger.debug(
+                    "replace #%s used file_unique_id", ingestion_id
+                )
+            else:
+                logger.debug("replace #%s without file_unique_id", ingestion_id)
             if storage_chat_id and storage_msg_id:
                 try:
                     await context.bot.delete_message(
@@ -108,9 +105,8 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 from_chat_id=src_chat_id,
                 message_id=src_msg_id,
             )
-            file_id = _get_file_unique_id(copied)
             await update_material_storage(
-                material_id, ARCHIVE_CHANNEL_ID, copied.message_id, file_id
+                material_id, ARCHIVE_CHANNEL_ID, copied.message_id, file_unique_id
             )
             await update_ingestion_status(ingestion_id, "approved")
             await context.bot.send_message(

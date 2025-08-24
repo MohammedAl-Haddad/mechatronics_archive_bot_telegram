@@ -31,6 +31,7 @@ async def _migrate(db: aiosqlite.Connection) -> None:
         ("source_topic_id", "INTEGER"),
         ("source_message_id", "INTEGER"),
         ("created_by_admin_id", "INTEGER"),
+        ("file_unique_id", "TEXT"),
     ]
     for col, col_type in materials_cols:
         if not await _column_exists(db, "materials", col):
@@ -112,7 +113,12 @@ async def _migrate(db: aiosqlite.Connection) -> None:
         """
     )
 
-    ingestion_cols = [("tg_message_id", "INTEGER"), ("admin_id", "INTEGER")]
+    ingestion_cols = [
+        ("tg_message_id", "INTEGER"),
+        ("admin_id", "INTEGER"),
+        ("action", "TEXT DEFAULT 'add'"),
+        ("file_unique_id", "TEXT"),
+    ]
     for col, col_type in ingestion_cols:
         if not await _column_exists(db, "ingestions", col):
             await db.execute(f"ALTER TABLE ingestions ADD COLUMN {col} {col_type}")

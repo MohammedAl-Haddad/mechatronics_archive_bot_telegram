@@ -17,7 +17,7 @@ from ..db import (
 )
 from ..db.materials import insert_material, find_exact
 from ..parser.hashtags import parse_hashtags
-from ..utils.telegram import send_ephemeral
+from ..utils.telegram import send_ephemeral, get_file_unique_id_from_message
 
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
+    file_unique_id = get_file_unique_id_from_message(message)
     text = message.caption or message.text or ""
     info, error = parse_hashtags(text)
     if error:
@@ -125,6 +126,7 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "year_id": year_id,
             "lecturer_id": lecturer_id,
             "lecturer_name": lecturer_name,
+            "file_unique_id": file_unique_id,
         }
         buttons = [
             [
@@ -150,14 +152,16 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         title,
         year_id=year_id,
         lecturer_id=lecturer_id,
-        file_unique_id=None,
+        file_unique_id=file_unique_id,
         source_chat_id=chat.id,
         source_topic_id=thread_id,
         source_message_id=message.message_id,
         created_by_admin_id=admin_id,
     )
 
-    ingestion_id = await insert_ingestion(message.message_id, admin_id)
+    ingestion_id = await insert_ingestion(
+        message.message_id, admin_id, file_unique_id=file_unique_id
+    )
     await attach_material(ingestion_id, material_id, "pending")
     await message.reply_text(
         f"✅ تم الاستلام. رقم العملية: #{ingestion_id}\nسيتم إشعارك بعد المراجعة."
@@ -211,7 +215,9 @@ async def handle_duplicate_decision(
         return
     old_material_id = data["old_material_id"]
     admin_id = data["admin_id"]
-    ingestion_id = await insert_ingestion(msg_id, admin_id, action="replace")
+    ingestion_id = await insert_ingestion(
+        msg_id, admin_id, action="replace", file_unique_id=data.get("file_unique_id")
+    )
     await attach_material(ingestion_id, old_material_id, "pending")
     await context.bot.send_message(
         chat_id=data["chat_id"],

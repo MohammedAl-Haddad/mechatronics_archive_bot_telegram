@@ -4,6 +4,16 @@ import re
 from .base import DB_PATH
 
 
+async def ensure_file_unique_id_column() -> None:
+    """Ensure the ``file_unique_id`` column exists on ``materials`` table."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("PRAGMA table_info(materials)")
+        cols = [row[1] for row in await cur.fetchall()]
+        if "file_unique_id" not in cols:
+            await db.execute("ALTER TABLE materials ADD COLUMN file_unique_id TEXT")
+            await db.commit()
+
+
 # -----------------------------------------------------------------------------
 # Helpers for years/lecturers
 # -----------------------------------------------------------------------------

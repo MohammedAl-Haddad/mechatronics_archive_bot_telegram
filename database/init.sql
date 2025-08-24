@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS ingestions (
     tg_message_id INTEGER,
     admin_id INTEGER,
     action TEXT NOT NULL DEFAULT 'add',
+    file_unique_id TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (material_id) REFERENCES materials(id),
     FOREIGN KEY (admin_id) REFERENCES admins(id)
