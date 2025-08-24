@@ -41,6 +41,9 @@ from .materials import (
     list_categories_for_subject_section_year,
     list_categories_for_lecture,
 )
+from .years import get_or_create as get_or_create_year
+from .lecturers import get_or_create as get_or_create_lecturer
+from .term_resources import insert_term_resource, get_latest_term_resource
 from .topics import (
     get_group_id_by_chat,
     get_binding,
@@ -93,6 +96,8 @@ __all__ = [
     'get_years_for_subject_section_lecturer', 'get_lecture_materials',
     'get_materials_by_category', 'list_categories_for_subject_section_year',
     'list_categories_for_lecture',
+    'get_or_create_year', 'get_or_create_lecturer',
+    'insert_term_resource', 'get_latest_term_resource',
     'get_group_id_by_chat', 'get_binding', 'bind',
     'get_group_info', 'upsert_group',
     'MANAGE_GROUPS', 'UPLOAD_CONTENT', 'APPROVE_CONTENT', 'MANAGE_ADMINS', 'PERMISSIONS',
