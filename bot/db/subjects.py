@@ -27,19 +27,22 @@ async def get_term_id_by_name(name: str) -> int | None:
         return row[0] if row else None
 
 
-async def insert_level(name: str):
+async def insert_level(name: str) -> None:
+    """Insert a level name if it does not already exist."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("INSERT OR IGNORE INTO levels (name) VALUES (?)", (name,))
         await db.commit()
 
 
-async def insert_term(name: str):
+async def insert_term(name: str) -> None:
+    """Insert a term name if it does not already exist."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("INSERT OR IGNORE INTO terms (name) VALUES (?)", (name,))
         await db.commit()
 
 
 async def get_or_create_level(name: str) -> int:
+    """Return id for a level, creating it if necessary."""
     level_id = await get_level_id_by_name(name)
     if level_id is not None:
         return level_id
@@ -50,6 +53,7 @@ async def get_or_create_level(name: str) -> int:
 
 
 async def get_or_create_term(name: str) -> int:
+    """Return id for a term, creating it if necessary."""
     term_id = await get_term_id_by_name(name)
     if term_id is not None:
         return term_id
@@ -65,6 +69,7 @@ async def insert_subject(
     term_id: int,
     sections_mode: str = "theory_only",
 ):
+    """Insert a new subject row."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "INSERT INTO subjects (code, name, level_id, term_id, sections_mode) VALUES (?, ?, ?, ?, ?)",
@@ -74,6 +79,7 @@ async def insert_subject(
 
 
 async def update_subject_mode(subject_id: int, mode: str) -> None:
+    """Update the sections mode for a subject."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE subjects SET sections_mode=? WHERE id=?",
@@ -126,6 +132,7 @@ async def get_subject_id_by_name(level_id: int, term_id: int, subject_name: str)
 # Dynamic helpers
 # -----------------------------------------------------------------------------
 async def count_subjects(level_id: int, term_id: int) -> int:
+    """Return number of subjects for the specified level and term."""
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT COUNT(*) FROM subjects WHERE level_id=? AND term_id=?",
@@ -136,6 +143,7 @@ async def count_subjects(level_id: int, term_id: int) -> int:
 
 
 async def term_feature_flags(level_id: int, term_id: int) -> dict:
+    """Return flags describing available materials for a level/term pair."""
     async with aiosqlite.connect(DB_PATH) as db:
         # syllabus exists?
         cur = await db.execute(
