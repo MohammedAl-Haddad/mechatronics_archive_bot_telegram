@@ -11,6 +11,25 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
+BIDI_RE = re.compile(r"[\u200e\u200f\u202a-\u202e]")
+_ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+HIJRI_RE = re.compile(r"(?<!\w)#\s*([0-9]{4}|[٠-٩]{4})\s*(?:هـ|ه)?\b")
+
+
+def normalize_digits(s: str) -> str:
+    return s.translate(_ARABIC_DIGITS)
+
+
+def extract_hijri_year(text: str) -> int | None:
+    if not text:
+        return None
+    cleaned = BIDI_RE.sub("", text)
+    m = HIJRI_RE.search(cleaned)
+    if not m:
+        return None
+    y = int(normalize_digits(m.group(1)))
+    return y if 1300 <= y <= 1600 else None
+
 # ---------------------------------------------------------------------------
 # Normalisation helpers
 # ---------------------------------------------------------------------------
@@ -130,4 +149,9 @@ def parse_hashtags(tags: Iterable[str]) -> dict[str, str | None]:
     return result
 
 
-__all__ = ["normalize_tag", "resolve_category", "parse_hashtags"]
+__all__ = [
+    "normalize_tag",
+    "resolve_category",
+    "parse_hashtags",
+    "extract_hijri_year",
+]

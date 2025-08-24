@@ -1,8 +1,8 @@
-from telegram import Update
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 import logging
+import re
 
 from ..config import OWNER_TG_ID
 from ..db import (
@@ -14,28 +14,25 @@ from ..db import (
     get_topic_link,
 )
 from ..db.materials import ensure_year_id, ensure_lecturer_id, insert_material
-from ..parser.hashtags import parse_hashtags
+from ..parser.hashtags import parse_hashtags, extract_hijri_year
 
 
 logger = logging.getLogger(__name__)
 
+HASHTAG_RE = re.compile(r"#\S+")
 
-def _extract_hashtags(update: Update) -> list[str]:
-    msg = update.message
-    if not msg:
-        return []
-    text = msg.text or msg.caption or ""
-    entities = msg.entities or msg.caption_entities or []
-    tags = []
-    for ent in entities:
-        if ent.type == "hashtag":
-            tags.append(text[ent.offset : ent.offset + ent.length])
-    return tags
+
+def _extract_hashtags(text: str) -> list[str]:
+    return HASHTAG_RE.findall(text)
 
 
 async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
-    tags = _extract_hashtags(update)
+    text = message.caption or message.text or ""
+    year = extract_hijri_year(text)
+    tags = _extract_hashtags(text)
+    if year is not None:
+        tags = [t for t in tags if extract_hijri_year(t) is None]
     if not tags:
         logger.warning("No hashtags found")
         if message:
@@ -90,15 +87,11 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     category = info["category"]
     title = info["title"]
     lecturer_name = info["lecturer"]
-    year = info["year"]
-    if year and (not year.isdigit() or len(year) != 4):
-        await message.reply_text("السنة الهجرية غير صحيحة.")
-        return
     if category is None or title is None:
         await message.reply_text("الوسوم تفتقد الفئة أو العنوان.")
         return
 
-    year_id = await ensure_year_id(year) if year else None
+    year_id = await ensure_year_id(str(year)) if year else None
     lecturer_id = await ensure_lecturer_id(lecturer_name) if lecturer_name else None
 
     material_id = await insert_material(
