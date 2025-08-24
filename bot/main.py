@@ -12,14 +12,16 @@ from telegram.ext import (
     filters,
 )
 
-from bot.config import BOT_TOKEN
-from bot.db import init_db
+from bot.config import BOT_TOKEN, OWNER_TG_ID
+from bot.db import init_db, ensure_owner_full_perms
 from .handlers import (
     start,
     echo_handler,
     insert_sub_conv,
+    insert_sub_private,
     ingestion_handler,
     insert_group_conv,
+    insert_group_private,
     admins_conv,
     approvals_handler,
     approval_callback,
@@ -41,8 +43,8 @@ def main():
     if os.name == "nt":
         try:
             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        except Exception:
-            pass
+        except Exception as e:
+            logging.debug("windows policy failed: %s", e)
 
     # تأكد من وجود event loop للـ MainThread (مهم لبايثون 3.12)
     try:
@@ -51,14 +53,17 @@ def main():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-    # تهيئة قاعدة البيانات
+    # تهيئة قاعدة البيانات وضمان صلاحيات المالك
     loop.run_until_complete(init_db())
+    loop.run_until_complete(ensure_owner_full_perms(OWNER_TG_ID))
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(insert_group_conv)
+    app.add_handler(CommandHandler("insert_group", insert_group_private, filters.ChatType.PRIVATE))
     app.add_handler(admins_conv)
     app.add_handler(insert_sub_conv)
+    app.add_handler(CommandHandler("insert_sub", insert_sub_private, filters.ChatType.PRIVATE))
     app.add_handler(approvals_handler)
     app.add_handler(approval_callback)
     app.add_handler(
@@ -66,10 +71,25 @@ def main():
         group=-1,
     )
     app.add_handler(
-        MessageHandler(filters.Entity("hashtag"), ingestion_handler),
+        MessageHandler(
+            filters.ChatType.GROUPS
+            & (
+                filters.Document.ALL
+                | filters.PHOTO
+                | filters.VIDEO
+                | filters.AUDIO
+                | filters.TEXT
+            )
+            & ~filters.COMMAND,
+            ingestion_handler,
+        ),
         group=1,
     )
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_handler))
+    app.add_handler(
+        MessageHandler(
+            filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, echo_handler
+        )
+    )
 
     app.job_queue.run_daily(purge_temp_archives, time=time(hour=0, minute=0))
 

@@ -23,6 +23,10 @@ if ARCHIVE_CHANNEL_ID is None:
     raise RuntimeError("ARCHIVE_CHANNEL_ID is missing in .env")
 GROUP_ID = _to_int("GROUP_ID")
 
+OWNER_TG_ID = _to_int("OWNER_TG_ID")
+if OWNER_TG_ID is None:
+    raise RuntimeError("OWNER_TG_ID is missing in .env")
+
 _admin = os.getenv("ADMIN_USER_IDS", "")
 ADMIN_USER_IDS = [int(x) for x in _admin.split(",") if x.strip().isdigit()]
 

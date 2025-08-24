@@ -1,10 +1,6 @@
-from __future__ import annotations
-
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+import asyncio
+import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler,
     MessageHandler,
@@ -15,7 +11,8 @@ from telegram.ext import (
 )
 
 from bot.db import (
-    is_admin,
+    is_owner,
+    has_perm,
     MANAGE_GROUPS,
     get_group_id_by_chat,
     get_subject_by_name,
@@ -24,8 +21,11 @@ from bot.db import (
     update_subject_mode,
     upsert_topic,
 )
+from bot.utils.conv import conv_push, conv_cleanup
 
-ASK_INPUT, CONFIRM = range(2)
+logger = logging.getLogger(__name__)
+
+CHOOSING, AWAIT_INPUT, CONFIRM = range(3)
 
 SECTION_ALIASES = {
     "نظري": "theory",
@@ -52,12 +52,10 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat.type != "supergroup":
         await message.reply_text("استخدم هذا الأمر داخل مجموعة خارقة.")
         return ConversationHandler.END
-
-    if not message or message.message_thread_id is None:
+    if message.message_thread_id is None:
         await message.reply_text("استخدم هذا الأمر داخل موضوع ضمن مجموعة.")
         return ConversationHandler.END
-
-    if not await is_admin(user.id, MANAGE_GROUPS):
+    if not (is_owner(user.id) or await has_perm(user.id, MANAGE_GROUPS)):
         await message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
         return ConversationHandler.END
 
@@ -68,42 +66,43 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     group_id, level_id, term_id = group_info
     thread_id = message.message_thread_id
 
-    context.user_data["insert_sub"] = {
+    context.chat_data["conv_chat_id"] = chat.id
+    conv_push(context, message.message_id)
+    context.chat_data["insert_sub"] = {
         "group_id": group_id,
         "thread_id": thread_id,
-        "cmd_msg_id": message.message_id,
-        "chat_id": chat.id,
         "level_id": level_id,
         "term_id": term_id,
     }
 
     existing = await get_topic_link(group_id, thread_id)
+    buttons = [
+        [InlineKeyboardButton("إدخال يدوي", callback_data="sub_manual"), InlineKeyboardButton("إلغاء", callback_data="sub_cancel")]
+    ]
     if existing:
-        subject_id, subject_name, section = existing
-        context.user_data["insert_sub"].update(
-            {"subject_id": subject_id, "subject_name": subject_name, "section": section}
-        )
-        buttons = [[
-            InlineKeyboardButton("تعديل", callback_data="insub_edit"),
-            InlineKeyboardButton("إلغاء", callback_data="insub_cancel"),
-        ]]
-        reply = (
-            f"الموضوع مرتبط حاليًا بـ:\n"
-            f"المادة: {subject_name}\n"
-            f"القسم: {SECTION_LABELS.get(section, section)}"
-        )
-        sent = await message.reply_text(
-            reply, reply_markup=InlineKeyboardMarkup(buttons)
-        )
-        context.user_data["insert_sub"]["confirm_msg_id"] = sent.message_id
-        return CONFIRM
+        buttons.insert(0, [InlineKeyboardButton("تعديل الربط", callback_data="sub_manual")])
+    sent = await message.reply_text(
+        "اربط هذا الـ Topic بالمادة والقسم.\nمثال: دوائر كهربائية (1) - نظري",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+    conv_push(context, sent.message_id)
+    return CHOOSING
 
-    await message.reply_text("أرسل اسم المادة متبوعًا بالقسم (مثال: فيزياء - نظري)")
-    return ASK_INPUT
+
+async def insert_sub_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "sub_manual":
+        await query.edit_message_text("أرسل: المادة - القسم")
+        return AWAIT_INPUT
+    await conv_cleanup(context, context.bot)
+    context.chat_data.pop("insert_sub", None)
+    return ConversationHandler.END
 
 
 async def insert_sub_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    info = context.user_data.get("insert_sub")
+    conv_push(context, update.message.message_id)
+    info = context.chat_data.get("insert_sub")
     if not info:
         return ConversationHandler.END
 
@@ -115,150 +114,102 @@ async def insert_sub_received(update: Update, context: ContextTypes.DEFAULT_TYPE
     row = await get_subject_by_name(subj_name)
     if row is None:
         if sect_label is None:
-            await update.message.reply_text("حدد القسم أيضًا (نظري/مناقشة/عملي).")
-            return ASK_INPUT
+            sent = await update.message.reply_text("حدد القسم أيضًا (نظري/مناقشة/عملي).")
+            conv_push(context, sent.message_id)
+            return AWAIT_INPUT
         section = SECTION_ALIASES.get(sect_label.lower())
         if section is None:
-            await update.message.reply_text("القسم غير معروف، استخدم: نظري، مناقشة، عملي.")
-            return ASK_INPUT
+            sent = await update.message.reply_text("القسم غير معروف، استخدم: نظري، مناقشة، عملي.")
+            conv_push(context, sent.message_id)
+            return AWAIT_INPUT
         mode = "theory_only"
         if section == "discussion":
             mode = "theory_discussion"
         elif section == "lab":
             mode = "theory_discussion_lab"
-        await insert_subject(
-            "AUTO", subj_name, info["level_id"], info["term_id"], sections_mode=mode
-        )
+        await insert_subject("AUTO", subj_name, info["level_id"], info["term_id"], sections_mode=mode)
         row = await get_subject_by_name(subj_name)
-        assert row is not None
         subject_id, _ = row
     else:
         subject_id, mode = row
         if mode == "theory_only":
-            if sect_label is None:
-                sect_label = "نظري"
-                section = "theory"
-            else:
-                section = SECTION_ALIASES.get(sect_label.lower())
-                if section is None:
-                    await update.message.reply_text(
-                        "القسم غير معروف، استخدم: نظري، مناقشة، عملي."
-                    )
-                    return ASK_INPUT
-                if section != "theory":
-                    new_mode = (
-                        "theory_discussion" if section == "discussion" else "theory_discussion_lab"
-                    )
-                    await update_subject_mode(subject_id, new_mode)
-                    mode = new_mode
+            section = "theory"
+            if sect_label and SECTION_ALIASES.get(sect_label.lower()) not in ("theory", None):
+                new_mode = (
+                    "theory_discussion" if SECTION_ALIASES.get(sect_label.lower()) == "discussion" else "theory_discussion_lab"
+                )
+                await update_subject_mode(subject_id, new_mode)
         else:
             if sect_label is None:
-                await update.message.reply_text("حدد القسم أيضًا (نظري/مناقشة/عملي).")
-                return ASK_INPUT
+                sent = await update.message.reply_text("حدد القسم أيضًا (نظري/مناقشة/عملي).")
+                conv_push(context, sent.message_id)
+                return AWAIT_INPUT
             section = SECTION_ALIASES.get(sect_label.lower())
             if section is None:
-                await update.message.reply_text(
-                    "القسم غير معروف، استخدم: نظري، مناقشة، عملي."
-                )
-                return ASK_INPUT
+                sent = await update.message.reply_text("القسم غير معروف، استخدم: نظري، مناقشة، عملي.")
+                conv_push(context, sent.message_id)
+                return AWAIT_INPUT
             if mode == "theory_discussion" and section == "lab":
-                await update.message.reply_text("هذا المقرر لا يحتوي على قسم عملي.")
-                return ASK_INPUT
+                sent = await update.message.reply_text("هذا المقرر لا يحتوي على قسم عملي.")
+                conv_push(context, sent.message_id)
+                return AWAIT_INPUT
+    sect_label = SECTION_LABELS.get(section, sect_label)
 
-    if sect_label is None:
-        sect_label = SECTION_LABELS.get(section, section)
-    else:
-        sect_label = SECTION_LABELS.get(section, sect_label)
+    info.update({"subject_id": subject_id, "subject_name": subj_name, "section": section})
 
-    info.update(
-        {
-            "subject_id": subject_id,
-            "subject_name": subj_name,
-            "section": section,
-            "input_msg_id": update.message.message_id,
-        }
-    )
-
-    buttons = [
-        [
-            InlineKeyboardButton("تأكيد", callback_data="insub_confirm"),
-            InlineKeyboardButton("تعديل", callback_data="insub_edit"),
-            InlineKeyboardButton("إلغاء", callback_data="insub_cancel"),
-        ]
-    ]
-    reply = f"المادة: {subj_name}\nالقسم: {sect_label or 'نظري'}\nهل تؤكد؟"
+    buttons = [[InlineKeyboardButton("تأكيد", callback_data="sub_confirm"), InlineKeyboardButton("إلغاء", callback_data="sub_cancel")]]
     sent = await update.message.reply_text(
-        reply, reply_markup=InlineKeyboardMarkup(buttons)
+        f"سيتم ربط هذا الـ Topic بـ: {subj_name} - {sect_label}",
+        reply_markup=InlineKeyboardMarkup(buttons),
     )
-    info["confirm_msg_id"] = sent.message_id
-
+    conv_push(context, sent.message_id)
     return CONFIRM
 
 
 async def insert_sub_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    data = query.data
-    info = context.user_data.get("insert_sub")
-    if not info:
-        await query.edit_message_text("انتهت الجلسة.")
-        return ConversationHandler.END
-
-    chat_id = info["chat_id"]
-    bot = context.bot
-
-    if data == "insub_confirm":
-        await upsert_topic(
-            info["group_id"], info["thread_id"], info["subject_id"], info["section"]
-        )
-        await query.edit_message_text(
-            "تم ربط الموضوع بالمادة {0} - {1}.".format(
-                info["subject_name"], SECTION_LABELS.get(info["section"], info["section"])
-            )
-        )
-        for key in ("cmd_msg_id", "input_msg_id"):
-            msg_id = info.get(key)
-            if msg_id:
-                try:
-                    await bot.delete_message(chat_id, msg_id)
-                except Exception:
-                    pass
-        context.user_data.pop("insert_sub", None)
-        return ConversationHandler.END
-
-    if data == "insub_edit":
-        msg_id = info.get("input_msg_id")
-        if msg_id:
-            try:
-                await bot.delete_message(chat_id, msg_id)
-            except Exception:
-                pass
-            info.pop("input_msg_id", None)
-        await query.edit_message_text("أرسل اسم المادة والقسم مرة أخرى.")
-        return ASK_INPUT
-
-    # cancel
-    await query.edit_message_text("تم الإلغاء.")
-    for key in ("cmd_msg_id", "input_msg_id"):
-        msg_id = info.get(key)
-        if msg_id:
-            try:
-                await bot.delete_message(chat_id, msg_id)
-            except Exception:
-                pass
-    context.user_data.pop("insert_sub", None)
+    info = context.chat_data.get("insert_sub")
+    if query.data == "sub_confirm" and info:
+        await upsert_topic(info["group_id"], info["thread_id"], info["subject_id"], info["section"])
+        await conv_cleanup(context, context.bot)
+        sent = await update.effective_chat.send_message("تم الربط بنجاح.")
+        try:
+            await asyncio.sleep(5)
+            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
+        except Exception as e:
+            logger.debug("delete failed: %s", e)
+    else:
+        await conv_cleanup(context, context.bot)
+        sent = await update.effective_chat.send_message("تم الإلغاء.")
+        try:
+            await asyncio.sleep(5)
+            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
+        except Exception as e:
+            logger.debug("delete failed: %s", e)
+    context.chat_data.pop("insert_sub", None)
     return ConversationHandler.END
 
 
 insert_sub_conv = ConversationHandler(
     entry_points=[CommandHandler("insert_sub", insert_sub_start, filters.ChatType.GROUPS)],
     states={
-        ASK_INPUT: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, insert_sub_received)
-        ],
-        CONFIRM: [CallbackQueryHandler(insert_sub_confirm, pattern="^insub_")],
+        CHOOSING: [CallbackQueryHandler(insert_sub_choice, pattern="^sub_")],
+        AWAIT_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, insert_sub_received)],
+        CONFIRM: [CallbackQueryHandler(insert_sub_confirm, pattern="^sub_")],
     },
     fallbacks=[],
 )
 
-__all__ = ["insert_sub_conv"]
+
+async def insert_sub_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.effective_message
+    if message:
+        try:
+            await message.delete()
+        except Exception as e:
+            logger.debug("delete failed: %s", e)
+        await update.effective_chat.send_message("هذا أمر خاص بالمجموعات.")
+
+
+__all__ = ["insert_sub_conv", "insert_sub_private"]
