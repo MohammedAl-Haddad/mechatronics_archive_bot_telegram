@@ -15,7 +15,7 @@ from ..db import (
 from ..db.materials import update_material_storage
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("bot.approvals")
 
 
 def _get_file_unique_id(msg) -> str | None:
@@ -99,6 +99,9 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 text="تم الاستبدال بنجاح وأُضيفت النسخة الجديدة إلى الأرشيف.",
                 reply_to_message_id=new_msg_id,
             )
+            logger.info(
+                "replace approved #%s by %s", ingestion_id, user.id
+            )
         else:
             copied = await context.bot.copy_message(
                 chat_id=ARCHIVE_CHANNEL_ID,
@@ -115,6 +118,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 text="تمت الموافقة وأُضيف المحتوى إلى الأرشيف.",
                 reply_to_message_id=new_msg_id,
             )
+            logger.info("approved #%s by %s", ingestion_id, user.id)
     else:
         await update_ingestion_status(ingestion_id, "rejected")
         msg = "تم رفض الاستبدال." if action_type == "replace" else "تم رفض المحتوى."
@@ -123,6 +127,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             text=msg,
             reply_to_message_id=new_msg_id,
         )
+        logger.info("rejected #%s by %s", ingestion_id, user.id)
     await query.edit_message_reply_markup(reply_markup=None)
 
 

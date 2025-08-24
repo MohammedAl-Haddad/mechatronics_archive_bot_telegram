@@ -6,6 +6,7 @@ from .ingestion import ingestion_handler, duplicate_callback
 from .approvals import approvals_handler, approval_callback
 from .moderation import moderation_handler
 from .admins import admins_conv
+from .misc import me_handler, version_handler
 
 __all__ = [
     "start",
@@ -21,4 +22,6 @@ __all__ = [
     "approval_callback",
     "moderation_handler",
     "admins_conv",
+    "me_handler",
+    "version_handler",
 ]

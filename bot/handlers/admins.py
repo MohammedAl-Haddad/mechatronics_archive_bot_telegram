@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -25,9 +24,10 @@ from bot.db import (
 )
 from bot.keyboards import build_permissions_keyboard
 from bot.utils.conv import conv_push, conv_cleanup
+from bot.utils.telegram import send_ephemeral
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("bot.admins")
 
 MENU, ADD_ID, PERMS, REMOVE_CONFIRM = range(4)
 PAGE_SIZE = 5
@@ -186,12 +186,8 @@ async def perms_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await add_admin(tg_id, "", mask, "all")
         await conv_cleanup(context, context.bot, update.effective_chat.id)
-        sent = await update.effective_chat.send_message("تم الحفظ بنجاح.")
-        try:
-            await asyncio.sleep(7)
-            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
-        except Exception as e:
-            logger.debug("delete failed: %s", e)
+        await send_ephemeral(context, update.effective_chat.id, "تم الحفظ بنجاح.")
+        logger.info("admin %s set perms %s by %s", tg_id, mask, update.effective_user.id)
         await _send_list(update, context, context.user_data.get("adm_page", 0), new=True)
         return MENU
     if data == "perm_cancel":
@@ -209,12 +205,8 @@ async def remove_confirm_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if tg_id and not is_owner(tg_id):
             await remove_admin(tg_id)
         await conv_cleanup(context, context.bot, update.effective_chat.id)
-        sent = await update.effective_chat.send_message("تمت الإزالة.")
-        try:
-            await asyncio.sleep(7)
-            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
-        except Exception as e:
-            logger.debug("delete failed: %s", e)
+        await send_ephemeral(context, update.effective_chat.id, "تمت الإزالة.")
+        logger.info("admin %s removed by %s", tg_id, update.effective_user.id)
         await _send_list(update, context, context.user_data.get("adm_page", 0), new=True)
         return MENU
     await conv_cleanup(context, context.bot, update.effective_chat.id)

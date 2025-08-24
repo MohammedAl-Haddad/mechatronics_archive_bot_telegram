@@ -1,5 +1,3 @@
-import asyncio
-import asyncio
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -21,8 +19,9 @@ from bot.db import (
     upsert_group,
 )
 from bot.utils.conv import conv_push, conv_cleanup
+from bot.utils.telegram import send_ephemeral
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("bot.binding")
 
 CHOOSING, AWAIT_INPUT, CONFIRM = range(3)
 
@@ -114,21 +113,17 @@ async def insert_group_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
     if data == "grp_confirm" and info:
         title = update.effective_chat.title or ""
         await upsert_group(update.effective_chat.id, info["level_id"], info["term_id"], title)
+        logger.info(
+            "group %s linked to level=%s term=%s",
+            update.effective_chat.id,
+            info["level_id"],
+            info["term_id"],
+        )
         await conv_cleanup(context, context.bot, update.effective_chat.id)
-        sent = await update.effective_chat.send_message("تم الربط بنجاح.")
-        try:
-            await asyncio.sleep(5)
-            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
-        except Exception as e:
-            logger.debug("delete failed: %s", e)
+        await send_ephemeral(context, update.effective_chat.id, "تم الربط بنجاح.")
     else:
         await conv_cleanup(context, context.bot, update.effective_chat.id)
-        sent = await update.effective_chat.send_message("تم الإلغاء.")
-        try:
-            await asyncio.sleep(5)
-            await context.bot.delete_message(update.effective_chat.id, sent.message_id)
-        except Exception as e:
-            logger.debug("delete failed: %s", e)
+        await send_ephemeral(context, update.effective_chat.id, "تم الإلغاء.")
     context.chat_data.pop("insert_group", None)
     return ConversationHandler.END
 
