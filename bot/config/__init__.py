@@ -1,6 +1,7 @@
 """Load configuration values from environment variables."""
 
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 
 from .constants import ENV_FILE
@@ -29,4 +30,7 @@ if OWNER_TG_ID is None:
 
 _admin = os.getenv("ADMIN_USER_IDS", "")
 ADMIN_USER_IDS = [int(x) for x in _admin.split(",") if x.strip().isdigit()]
+
+VERSION = os.getenv("COMMIT_SHA", "dev")
+START_TIME = datetime.now()
 

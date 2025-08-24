@@ -14,6 +14,7 @@ from telegram.ext import (
 
 from bot.config import BOT_TOKEN, OWNER_TG_ID
 from bot.db import init_db, ensure_owner_full_perms
+from bot.utils.logging import setup_logging
 from .handlers import (
     start,
     echo_handler,
@@ -27,18 +28,14 @@ from .handlers import (
     approvals_handler,
     approval_callback,
     moderation_handler,
+    me_handler,
+    version_handler,
 )
 from .jobs import purge_temp_archives
 from datetime import time
 
-# --------------------------------------------------------------------------
-# إعداد التسجيل لرؤية الرسائل التفصيلية
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
+setup_logging()
 
-# --------------------------------------------------------------------------
 def main():
     # سياسة loop مناسبة لويندوز
     if os.name == "nt":
@@ -64,6 +61,8 @@ def main():
     app.add_handler(CommandHandler("start", start, filters.ChatType.PRIVATE))
     app.add_handler(CommandHandler("insert_group", insert_group_private, filters.ChatType.PRIVATE))
     app.add_handler(CommandHandler("insert_sub", insert_sub_private, filters.ChatType.PRIVATE))
+    app.add_handler(me_handler)
+    app.add_handler(version_handler)
 
     # أوامر المجموعات
     app.add_handler(insert_group_conv)
@@ -104,6 +103,8 @@ def main():
                 "  /insert_sub -> groups",
                 "  /approvals -> private",
                 "  /admins -> private",
+                "  /me -> private",
+                "  /version -> private",
                 "  ingestion (#) -> groups",
                 "  unknown-text -> private only",
             ]

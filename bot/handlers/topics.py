@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -22,8 +21,9 @@ from bot.db import (
     set_theory_only,
 )
 from bot.utils.conv import conv_push, conv_cleanup
+from bot.utils.telegram import send_ephemeral
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("bot.binding")
 
 START, AWAIT_INPUT, ASK_THEORY_ONLY, CONFIRM = range(4)
 
@@ -181,21 +181,18 @@ async def insert_sub_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
         subject = await get_or_create(term_id, info["subject_name"], level_id=level_id)
         await set_theory_only(subject.id, info.get("theory_only", False))
         await bind(chat.id, info["thread_id"], subject.id, info["section"])
+        logger.info(
+            "topic %s in %s bound to subject=%s section=%s",
+            info["thread_id"],
+            chat.id,
+            subject.id,
+            info["section"],
+        )
         await conv_cleanup(context, context.bot, chat.id)
-        sent = await chat.send_message("تم الربط بنجاح.")
-        try:
-            await asyncio.sleep(7)
-            await context.bot.delete_message(chat.id, sent.message_id)
-        except Exception as e:
-            logger.debug("delete failed: %s", e)
+        await send_ephemeral(context, chat.id, "تم الربط بنجاح.")
     else:
         await conv_cleanup(context, context.bot, chat.id)
-        sent = await chat.send_message("تم الإلغاء.")
-        try:
-            await asyncio.sleep(7)
-            await context.bot.delete_message(chat.id, sent.message_id)
-        except Exception as e:
-            logger.debug("delete failed: %s", e)
+        await send_ephemeral(context, chat.id, "تم الإلغاء.")
     context.chat_data.pop("insert_sub", None)
     return ConversationHandler.END
 

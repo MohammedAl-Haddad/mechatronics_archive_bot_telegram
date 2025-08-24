@@ -1,4 +1,5 @@
-from telegram import Update
+import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot.db import (
@@ -64,6 +65,10 @@ from ..keyboards.builders import (
 )
 
 from ..utils.formatting import arabic_ordinal, to_display_name
+from ..utils.telegram import build_archive_link
+from ..config import ARCHIVE_CHANNEL_ID
+
+logger = logging.getLogger("bot.navigation")
 
 from ..navigation import NavigationState
 
@@ -72,6 +77,8 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     level_id, term_id = nav.get_ids()
     level_label, term_label = nav.get_labels()
     stack = nav.stack
+    subject_id = nav.data.get("subject_id")
+    section_code = nav.data.get("section")
 
     # لا شيء محدد → القائمة الرئيسية
     if not stack:
@@ -554,10 +561,29 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 for _id, title, url, chat_id, msg_id in mats:
                     if msg_id and chat_id:
+                        link = None
+                        if chat_id == ARCHIVE_CHANNEL_ID:
+                            link = build_archive_link(chat_id, msg_id)
+                        markup = (
+                            InlineKeyboardMarkup(
+                                [[InlineKeyboardButton("🔗 فتح في الأرشيف", url=link)]]
+                            )
+                            if link
+                            else None
+                        )
                         await context.bot.copy_message(
                             chat_id=update.effective_chat.id,
                             from_chat_id=chat_id,
                             message_id=msg_id,
+                            reply_markup=markup,
+                        )
+                        logger.info(
+                            "send subject=%s section=%s year=%s lecture=%s type=%s",
+                            subject_id,
+                            section_code,
+                            year_id,
+                            "-",
+                            category,
                         )
                     elif url:
                         await update.message.reply_text(f"📄 {title}\n{url}")
@@ -598,10 +624,29 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if mats:
                     for _id, title, url, chat_id, msg_id in mats:
                         if msg_id and chat_id:
+                            link = None
+                            if chat_id == ARCHIVE_CHANNEL_ID:
+                                link = build_archive_link(chat_id, msg_id)
+                            markup = (
+                                InlineKeyboardMarkup(
+                                    [[InlineKeyboardButton("🔗 فتح في الأرشيف", url=link)]]
+                                )
+                                if link
+                                else None
+                            )
                             await context.bot.copy_message(
                                 chat_id=update.effective_chat.id,
                                 from_chat_id=chat_id,
                                 message_id=msg_id,
+                                reply_markup=markup,
+                            )
+                            logger.info(
+                                "send subject=%s section=%s year=%s lecture=%s type=%s",
+                                subject_id,
+                                section_code,
+                                year_id,
+                                lecture_title,
+                                category,
                             )
                         elif url:
                             await update.message.reply_text(f"📄 {title}\n{url}")
@@ -651,10 +696,29 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if material:
                 _id, url, chat_id, msg_id = material
                 if msg_id and chat_id:
+                    link = None
+                    if chat_id == ARCHIVE_CHANNEL_ID:
+                        link = build_archive_link(chat_id, msg_id)
+                    markup = (
+                        InlineKeyboardMarkup(
+                            [[InlineKeyboardButton("🔗 فتح في الأرشيف", url=link)]]
+                        )
+                        if link
+                        else None
+                    )
                     await context.bot.copy_message(
                         chat_id=update.effective_chat.id,
                         from_chat_id=chat_id,
                         message_id=msg_id,
+                        reply_markup=markup,
+                    )
+                    logger.info(
+                        "send subject=%s section=%s year=%s lecture=%s type=%s",
+                        subject_id,
+                        section_code,
+                        nav.data.get("year_id"),
+                        nav.data.get("lecture_title"),
+                        category,
                     )
                 elif url:
                     await update.message.reply_text(f"📄 {text}\n{url}")

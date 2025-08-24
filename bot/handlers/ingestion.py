@@ -2,7 +2,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
 import logging
-import asyncio
 
 from ..config import OWNER_TG_ID
 from ..db import (
@@ -18,6 +17,7 @@ from ..db import (
 )
 from ..db.materials import insert_material, find_exact
 from ..parser.hashtags import parse_hashtags
+from ..utils.telegram import send_ephemeral
 
 
 logger = logging.getLogger(__name__)
@@ -162,6 +162,15 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await message.reply_text(
         f"✅ تم الاستلام. رقم العملية: #{ingestion_id}\nسيتم إشعارك بعد المراجعة."
     )
+    logger.info(
+        "pending #%s subject=%s section=%s year=%s type=%s title=%s",
+        ingestion_id,
+        subject_name,
+        section,
+        year,
+        category,
+        title,
+    )
 
     summary = (
         f"المادة: {subject_name}\nالقسم: {section}\nالسنة: {year or '---'}\nالنوع: {category}\nالعنوان: {title}"
@@ -184,14 +193,6 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         logger.error("Failed to notify approver: %s", e)
 
 
-async def _delete_later(bot, chat_id: int, msg_id: int, delay: int = 7):
-    await asyncio.sleep(delay)
-    try:
-        await bot.delete_message(chat_id, msg_id)
-    except Exception:
-        pass
-
-
 async def handle_duplicate_decision(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -206,10 +207,7 @@ async def handle_duplicate_decision(
         return
     if action == "cancel":
         ctx.pop(msg_id, None)
-        await query.edit_message_text("تم الإلغاء.")
-        context.application.create_task(
-            _delete_later(context.bot, query.message.chat_id, query.message.message_id)
-        )
+        await send_ephemeral(context, query.message.chat_id, "تم الإلغاء.")
         return
     old_material_id = data["old_material_id"]
     admin_id = data["admin_id"]
