@@ -1,0 +1,35 @@
+name: Docs Guard
+on:
+  push:
+    branches: [ "main_1" ]
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Detect changes
+        id: diff
+        run: |
+          set -e
+          LAST=$(git rev-parse HEAD)
+          PREV=$(git rev-parse HEAD^)
+          echo "LAST=$LAST"
+          echo "PREV=$PREV"
+          CHANGED=$(git diff --name-only "$PREV" "$LAST")
+          echo "$CHANGED" > changed.txt
+          echo "changed<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      - name: Check for code changes without docs
+        run: |
+          set -e
+          if grep -E '^(bot/|database/|keyboards/|parser/|bot/parser/)' changed.txt; then
+            if ! grep -E '^(docs/|README\.md)' changed.txt; then
+              echo "❌ تغيّر الكود بدون تحديث docs/ أو README.md — حدّث الوثائق ثم ادفع التغييرات."
+              exit 1
+            fi
+          fi
+          echo "✅ الشرط مستوفى: تم تحديث الوثائق أو لم تتغير ملفات الكود."
+
