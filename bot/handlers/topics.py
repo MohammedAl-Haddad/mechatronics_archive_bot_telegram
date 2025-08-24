@@ -66,7 +66,6 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     group_id, level_id, term_id = group_info
     thread_id = message.message_thread_id
 
-    context.chat_data["conv_chat_id"] = chat.id
     conv_push(context, message.message_id)
     context.chat_data["insert_sub"] = {
         "group_id": group_id,
@@ -95,7 +94,7 @@ async def insert_sub_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "sub_manual":
         await query.edit_message_text("أرسل: المادة - القسم")
         return AWAIT_INPUT
-    await conv_cleanup(context, context.bot)
+    await conv_cleanup(context, context.bot, query.message.chat_id)
     context.chat_data.pop("insert_sub", None)
     return ConversationHandler.END
 
@@ -172,7 +171,7 @@ async def insert_sub_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
     info = context.chat_data.get("insert_sub")
     if query.data == "sub_confirm" and info:
         await upsert_topic(info["group_id"], info["thread_id"], info["subject_id"], info["section"])
-        await conv_cleanup(context, context.bot)
+        await conv_cleanup(context, context.bot, update.effective_chat.id)
         sent = await update.effective_chat.send_message("تم الربط بنجاح.")
         try:
             await asyncio.sleep(5)
@@ -180,7 +179,7 @@ async def insert_sub_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
         except Exception as e:
             logger.debug("delete failed: %s", e)
     else:
-        await conv_cleanup(context, context.bot)
+        await conv_cleanup(context, context.bot, update.effective_chat.id)
         sent = await update.effective_chat.send_message("تم الإلغاء.")
         try:
             await asyncio.sleep(5)

@@ -40,7 +40,6 @@ async def insert_group_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await message.reply_text("عذرًا، لا تملك صلاحية هذا الأمر.")
         return ConversationHandler.END
 
-    context.chat_data["conv_chat_id"] = chat.id
     conv_push(context, message.message_id)
 
     existing = await get_group_info(chat.id)
@@ -68,7 +67,7 @@ async def insert_group_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
     if query.data == "grp_manual":
         await query.edit_message_text("أرسل: المستوى - الترم")
         return AWAIT_INPUT
-    await conv_cleanup(context, context.bot)
+    await conv_cleanup(context, context.bot, query.message.chat_id)
     return ConversationHandler.END
 
 
@@ -115,7 +114,7 @@ async def insert_group_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
     if data == "grp_confirm" and info:
         title = update.effective_chat.title or ""
         await upsert_group(update.effective_chat.id, info["level_id"], info["term_id"], title)
-        await conv_cleanup(context, context.bot)
+        await conv_cleanup(context, context.bot, update.effective_chat.id)
         sent = await update.effective_chat.send_message("تم الربط بنجاح.")
         try:
             await asyncio.sleep(5)
@@ -123,7 +122,7 @@ async def insert_group_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
         except Exception as e:
             logger.debug("delete failed: %s", e)
     else:
-        await conv_cleanup(context, context.bot)
+        await conv_cleanup(context, context.bot, update.effective_chat.id)
         sent = await update.effective_chat.send_message("تم الإلغاء.")
         try:
             await asyncio.sleep(5)
