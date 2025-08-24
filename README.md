@@ -61,13 +61,11 @@ python -m bot.main
 
 سيقوم البرنامج بتهيئة قاعدة البيانات ثم يبدأ الاستماع لتحديثات تيليجرام.
 
-## أدلة الاستخدام
+## الوثائق
 
-- [ربط المجموعات](docs/group-linking.md)
-- [رفع المحتوى](docs/content-upload.md)
-- [دليل المالك](docs/owner-guide.md)
-- [دليل المشرفين](docs/moderators_guide_ar.md)
-- [دليل المستخدمين](docs/user_guide_ar.md)
+- [📘 دليل المستخدمين](docs/user_guide_ar.md)
+- [🛠️ دليل المشرفين](docs/moderators_guide_ar.md)
+- [🧩 قوالب الكابتشن](docs/caption_templates.md)
 
 ## الاختبار
 
