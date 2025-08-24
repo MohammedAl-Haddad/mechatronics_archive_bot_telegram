@@ -18,11 +18,14 @@ from typing import Iterable
 def normalize_tag(tag: str) -> str:
     """Return a simplified representation of a hashtag.
 
-    Leading ``#`` symbols are stripped, hyphens are converted to underscores
-    and the value is lower‑cased.
+    The helper removes any leading ``#`` markers, replaces hyphens with
+    underscores and folds the text to lower‑case.  Extra whitespace around the
+    tag is stripped so the result can be safely compared against our known
+    aliases.
     """
 
-    return tag.lstrip("#").replace("-", "_").strip().lower()
+    cleaned = tag.lstrip("#").replace("-", "_").strip()
+    return cleaned.casefold()
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +42,7 @@ CATEGORY_ALIASES: dict[str, set[str]] = {
     "exam": {"exam", "اختبار", "اختبارات", "امتحان"},
     "booklet": {"booklet", "مذكرة", "مذكرات"},
     "summary": {"summary", "ملخص", "ملخصات"},
-    "notes": {"notes", "ملاحظات", "نوته"},
+    "notes": {"notes", "note", "ملاحظات", "نوته"},
     "board_images": {"صور_السبورة", "board", "board_images"},
     "related": {"ملف_ذو_صلة", "related"},
     # Additional categories supported by the database
@@ -53,10 +56,10 @@ CATEGORY_ALIASES: dict[str, set[str]] = {
 def resolve_category(tag: str) -> str | None:
     """Map *tag* to a canonical category if possible."""
 
-    for category, aliases in CATEGORY_ALIASES.items():
-        if tag in aliases:
-            return category
-    return None
+    return next(
+        (category for category, aliases in CATEGORY_ALIASES.items() if tag in aliases),
+        None,
+    )
 
 
 _YEAR_RE = re.compile(r"^\d{4}(?:-\d{4})?$")
