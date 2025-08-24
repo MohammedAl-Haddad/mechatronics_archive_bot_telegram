@@ -1,4 +1,5 @@
 import aiosqlite
+import re
 
 from .base import DB_PATH
 
@@ -389,3 +390,62 @@ async def list_categories_for_lecture(
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(q, tuple(params))
         return [r[0] for r in await cur.fetchall()]
+
+
+# -----------------------------------------------------------------------------
+# Simplified access helpers for navigation
+# -----------------------------------------------------------------------------
+
+async def get_years(subject_id: int, section: str) -> list[int]:
+    """Return available Hijri years for *subject* and *section*."""
+    rows = await get_years_for_subject_section(subject_id, section)
+    return [int(name) for _id, name in rows]
+
+
+async def get_lectures_by_year(subject_id: int, section: str, year_id: int) -> list[dict]:
+    """Return lectures within a specific *year_id* with extracted numbers."""
+    titles = await list_lecture_titles_by_year(subject_id, section, year_id)
+    lectures: list[dict] = []
+    for t in titles:
+        m = re.search(r"(\d+)", t)
+        no = int(m.group(1)) if m else len(lectures) + 1
+        title = t.split(":", 1)[1].strip() if ":" in t else ""
+        lectures.append({"lecture_no": no, "title": title, "raw": t})
+    return lectures
+
+
+async def get_types_for_lecture(
+    subject_id: int,
+    section: str,
+    year_id: int,
+    lecture_title: str,
+) -> dict[str, tuple[int, str | None, int | None, int | None]]:
+    """Return available types for a lecture mapped to material records."""
+    cats = await list_categories_for_lecture(subject_id, section, lecture_title, year_id=year_id)
+    result: dict[str, tuple[int, str | None, int | None, int | None]] = {}
+    for cat in cats:
+        mats = await get_materials_by_category(
+            subject_id, section, cat, year_id=year_id, title=lecture_title
+        )
+        if mats:
+            _id, title, url, chat_id, msg_id = mats[0]
+            result[cat] = (_id, url, chat_id, msg_id)
+    return result
+
+
+async def get_year_specials(subject_id: int, section: str, year_id: int) -> dict:
+    """Return flags for booklet and exam models in a year."""
+    booklet = bool(
+        await get_materials_by_category(subject_id, section, "booklet", year_id=year_id)
+    )
+    exam_mid = bool(
+        await get_materials_by_category(subject_id, section, "exam_mid", year_id=year_id)
+    )
+    exam_final = bool(
+        await get_materials_by_category(subject_id, section, "exam_final", year_id=year_id)
+    )
+    return {
+        "has_booklet": booklet,
+        "has_exam_mid": exam_mid,
+        "has_exam_final": exam_final,
+    }

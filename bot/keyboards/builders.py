@@ -18,6 +18,8 @@ from .constants import (
     LIST_LECTURES_FOR_LECTURER,
 )
 
+from ..utils.formatting import arabic_ordinal, to_display_name
+
 
 def _rows(items: list[str], cols: int = 2) -> list[list[str]]:
     """Split items into rows with a fixed number of columns, skipping empties."""
@@ -144,7 +146,7 @@ def generate_years_keyboard(years: list[tuple[int, str]]) -> ReplyKeyboardMarkup
 
 def generate_lecturers_keyboard(lecturers: list[tuple[int, str]]) -> ReplyKeyboardMarkup:
     """Display lecturers for the subject/section."""
-    names = [name for _id, name in lecturers]
+    names = [to_display_name(name) for _id, name in lecturers]
     keyboard = _rows(names, cols=2)
     keyboard.append([BACK, BACK_TO_SUBJECTS])
     keyboard.append([BACK_TO_LEVELS])
@@ -204,6 +206,51 @@ def generate_lecture_category_menu_keyboard(categories: list[str]) -> ReplyKeybo
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
+def build_years_menu(years: list[int]) -> ReplyKeyboardMarkup:
+    """Build a simple menu for available years."""
+    labels = [str(y) for y in years]
+    keyboard = _rows(labels, cols=2)
+    keyboard.append([BACK])
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
+def build_lectures_menu(lectures: list[dict]) -> ReplyKeyboardMarkup:
+    """Build lecture list with Arabic ordinals."""
+    labels: list[str] = []
+    for item in lectures:
+        no = item.get("lecture_no")
+        title = item.get("title", "")
+        label = f"المحاضرة {arabic_ordinal(no)}"
+        if title:
+            label += f": {title}"
+        labels.append(label)
+    keyboard = _rows(labels, cols=1)
+    keyboard.append([BACK])
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
+def build_types_menu(types: list[str]) -> ReplyKeyboardMarkup:
+    """Build menu for available content types."""
+    labels = [CATEGORY_TO_LABEL.get(t, t) for t in types]
+    keyboard = _rows(labels, cols=2)
+    keyboard.append([BACK])
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
+def build_exam_menu(mid_exists: bool, final_exists: bool) -> ReplyKeyboardMarkup:
+    """Build submenu for exam models."""
+    row: list[str] = []
+    if mid_exists:
+        row.append("النصفي")
+    if final_exists:
+        row.append("النهائي")
+    keyboard: list[list[str]] = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([BACK])
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
 __all__ = [
     "build_main_menu",
     "generate_levels_keyboard",
@@ -218,4 +265,8 @@ __all__ = [
     "generate_lecturer_filter_keyboard",
     "generate_year_category_menu_keyboard",
     "generate_lecture_category_menu_keyboard",
+    "build_years_menu",
+    "build_lectures_menu",
+    "build_types_menu",
+    "build_exam_menu",
 ]
