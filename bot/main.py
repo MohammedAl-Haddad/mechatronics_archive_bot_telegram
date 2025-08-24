@@ -58,12 +58,18 @@ def main():
     loop.run_until_complete(ensure_owner_full_perms(OWNER_TG_ID))
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(insert_group_conv)
+
+    # أوامر خاصة
+    app.add_handler(CommandHandler("start", start, filters.ChatType.PRIVATE))
     app.add_handler(CommandHandler("insert_group", insert_group_private, filters.ChatType.PRIVATE))
-    app.add_handler(admins_conv)
-    app.add_handler(insert_sub_conv)
     app.add_handler(CommandHandler("insert_sub", insert_sub_private, filters.ChatType.PRIVATE))
+
+    # أوامر المجموعات
+    app.add_handler(insert_group_conv)
+    app.add_handler(insert_sub_conv)
+
+    # أوامر المشرفين
+    app.add_handler(admins_conv)
     app.add_handler(approvals_handler)
     app.add_handler(approval_callback)
     app.add_handler(
@@ -93,7 +99,19 @@ def main():
 
     app.job_queue.run_daily(purge_temp_archives, time=time(hour=0, minute=0))
 
-    print("✅ Bot is running...")
+    print(
+        "\n".join(
+            [
+                "📟 bot wiring:",
+                "  /start -> private",
+                "  /insert_group -> groups",
+                "  /insert_sub -> groups",
+                "  /approvals -> private",
+                "  /admins -> private",
+                "  unknown-text -> private only",
+            ]
+        )
+    )
     app.run_polling()
 
 
