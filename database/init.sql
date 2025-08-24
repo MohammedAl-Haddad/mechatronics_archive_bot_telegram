@@ -160,3 +160,17 @@ ON materials(lecturer_id);
 
 CREATE INDEX IF NOT EXISTS idx_materials_admin
 ON materials(created_by_admin_id);
+
+-- موارد مرتبطة بالترم (مثل جدول الحضور)
+CREATE TABLE IF NOT EXISTS term_resources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    term_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    tg_storage_chat_id INTEGER NOT NULL,
+    tg_storage_msg_id INTEGER NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (term_id) REFERENCES terms(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_term_resources_term_kind
+ON term_resources(term_id, kind);

@@ -2,7 +2,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
 import logging
-import re
 import asyncio
 
 from ..config import OWNER_TG_ID
@@ -13,37 +12,29 @@ from ..db import (
     attach_material,
     get_group_id_by_chat,
     get_binding,
+    get_or_create_year,
+    get_or_create_lecturer,
+    insert_term_resource,
 )
-from ..db.materials import (
-    ensure_year_id,
-    ensure_lecturer_id,
-    insert_material,
-    find_exact,
-)
-from ..parser.hashtags import parse_hashtags, extract_hijri_year
+from ..db.materials import insert_material, find_exact
+from ..parser.hashtags import parse_hashtags
 
 
 logger = logging.getLogger(__name__)
-
-HASHTAG_RE = re.compile(r"#\S+")
-
-
-def _extract_hashtags(text: str) -> list[str]:
-    return HASHTAG_RE.findall(text)
 
 
 async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
     text = message.caption or message.text or ""
-    year = extract_hijri_year(text)
-    tags = _extract_hashtags(text)
-    if year is not None:
-        tags = [t for t in tags if extract_hijri_year(t) is None]
-    if not tags:
-        logger.warning("No hashtags found")
-        if message:
-            await message.reply_text("لم يتم العثور على وسوم.")
+    info, error = parse_hashtags(text)
+    if error:
+        await message.reply_text(error)
         return
+
+    year = info.year
+    category = info.content_type
+    title = info.title or ""
+    lecturer_name = info.lecturer
 
     user = update.effective_user
     if not user:
@@ -65,10 +56,10 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     chat = update.effective_chat
     thread_id = message.message_thread_id if message else None
-    if chat is None or thread_id is None:
-        logger.warning("Missing chat %s or thread %s", chat, thread_id)
+    if chat is None:
+        logger.warning("Missing chat %s", chat)
         if message:
-            await message.reply_text("لا يمكن تحديد المحادثة أو الموضوع.")
+            await message.reply_text("لا يمكن تحديد المحادثة.")
         return
 
     group_info = await get_group_id_by_chat(chat.id)
@@ -77,28 +68,40 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         logger.warning("Group info not found for chat %s", chat.id)
         await message.reply_text("المجموعة غير معروفة.")
         return
-    binding = await get_binding(chat.id, thread_id)
-    logger.debug("binding=%s", binding)
-    if binding is None:
-        logger.warning(
-            "Topic link not found for chat %s thread %s", chat.id, thread_id
-        )
-        await message.reply_text("لم يتم العثور على رابط الموضوع.")
-        return
-    subject_id = binding["subject_id"]
-    section = binding["section"]
-    subject_name = binding["subject_name"]
+    binding = None
+    if category != "attendance":
+        if thread_id is None:
+            await message.reply_text(
+                "هذا النوع يتطلب ربط الـTopic بمادة/قسم عبر /insert_sub."
+            )
+            return
+        binding = await get_binding(chat.id, thread_id)
+        logger.debug("binding=%s", binding)
+        if binding is None:
+            await message.reply_text(
+                "هذا النوع يتطلب ربط الـTopic بمادة/قسم عبر /insert_sub."
+            )
+            return
+        subject_id = binding["subject_id"]
+        section = binding["section"]
+        subject_name = binding["subject_name"]
+    else:
+        subject_id = section = subject_name = None
 
-    info = parse_hashtags(tags)
-    category = info["category"]
-    title = info["title"]
-    lecturer_name = info["lecturer"]
-    if category is None or title is None:
-        await message.reply_text("الوسوم تفتقد الفئة أو العنوان.")
+    if category is None:
+        await message.reply_text("لم يتم التعرف على نوع المحتوى.")
         return
 
-    year_id = await ensure_year_id(str(year)) if year else None
-    lecturer_id = await ensure_lecturer_id(lecturer_name) if lecturer_name else None
+    if category == "attendance":
+        term_id = group_info[2]
+        await insert_term_resource(term_id, "attendance", chat.id, message.message_id)
+        await message.reply_text("✅ تم الاستلام.")
+        return
+
+    year_id = await get_or_create_year(str(year)) if year else None
+    lecturer_id = (
+        await get_or_create_lecturer(lecturer_name) if lecturer_name else None
+    )
 
     existing = await find_exact(
         subject_id,
