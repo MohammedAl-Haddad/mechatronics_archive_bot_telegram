@@ -26,6 +26,10 @@ from bot.db import (
     get_types_for_lecture,
     get_material,
     get_year_specials,
+    has_exam_mid,
+    has_exam_final,
+    get_exam_mid,
+    get_exam_final,
 )
 
 from ..keyboards.constants import (
@@ -60,7 +64,7 @@ from ..keyboards.builders import (
     build_years_menu,
     build_lectures_menu,
     build_types_menu,
-    build_exam_menu,
+    build_exams_menu,
     build_year_root_menu,
 )
 
@@ -624,11 +628,11 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if text == "النماذج":
                 nav.push_view("exam_menu")
+                mid_exists = await has_exam_mid(subject_id, section_code, year_id)
+                final_exists = await has_exam_final(subject_id, section_code, year_id)
                 return await update.message.reply_text(
                     "اختر النموذج:",
-                    reply_markup=build_exam_menu(
-                        specials.get("has_exam_mid"), specials.get("has_exam_final")
-                    ),
+                    reply_markup=build_exams_menu(mid_exists, final_exists),
                 )
 
     if text == YEAR_MENU_LECTURES or text in LABEL_TO_CATEGORY:
@@ -766,9 +770,10 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             subject_id = nav.data.get("subject_id")
             section_code = nav.data.get("section")
             year_id = nav.data.get("year_id")
-            category = "exam_mid" if text == "النصفي" else "exam_final"
-            mats = await get_materials_by_category(
-                subject_id, section_code, category, year_id=year_id
+            mats = (
+                await get_exam_mid(subject_id, section_code, year_id)
+                if text == "النصفي"
+                else await get_exam_final(subject_id, section_code, year_id)
             )
             if not mats:
                 await update.message.reply_text("لا توجد ملفات لهذا النموذج.")
@@ -794,12 +799,11 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     elif url:
                         await update.message.reply_text(f"📄 {title}\n{url}")
 
-            specials = nav.data.get("year_specials") or await get_year_specials(subject_id, section_code, year_id)
+            mid_exists = await has_exam_mid(subject_id, section_code, year_id)
+            final_exists = await has_exam_final(subject_id, section_code, year_id)
             return await update.message.reply_text(
                 "اختر النموذج:",
-                reply_markup=build_exam_menu(
-                    specials.get("has_exam_mid"), specials.get("has_exam_final")
-                ),
+                reply_markup=build_exams_menu(mid_exists, final_exists),
             )
 
 
