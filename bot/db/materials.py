@@ -441,32 +441,6 @@ async def list_categories_for_lecture(
 # Simplified access helpers for navigation
 # -----------------------------------------------------------------------------
 
-async def get_lecturers(subject_id: int, section: str) -> list[dict]:
-    """Return lecturers with approved materials for *subject* and *section*.
-
-    Each lecturer is returned as ``{"id": int, "tag": str, "display": str}``.
-    Only lecturers linked to materials that have at least one approved
-    ingestion and stored content (URL or Telegram message) are included.
-    """
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute(
-            """
-            SELECT DISTINCT l.id, l.name
-            FROM materials m
-            JOIN lecturers l ON l.id = m.lecturer_id
-            JOIN ingestions i ON i.material_id = m.id
-            WHERE m.subject_id = ? AND m.section = ? AND m.lecturer_id IS NOT NULL
-              AND (m.url IS NOT NULL OR m.tg_storage_msg_id IS NOT NULL)
-              AND i.status = 'approved'
-            ORDER BY l.name
-            """,
-            (subject_id, section),
-        )
-        rows = await cur.fetchall()
-
-    return [{"id": _id, "tag": name, "display": name} for _id, name in rows]
-
 async def get_years(
     subject_id: int, section: str, only_approved: bool = True
 ) -> list[int]:
