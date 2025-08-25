@@ -642,3 +642,27 @@ async def get_year_specials(subject_id: int, section: str, year: int) -> dict:
         "has_exam_mid": bool(exam_mid),
         "has_exam_final": bool(exam_final),
     }
+
+
+async def get_exam_mid(subject_id: int, section: str, year_id: int):
+    """Return approved midterm exam materials for a year."""
+    return await get_materials_by_category(
+        subject_id, section, "exam_mid", year_id=year_id
+    )
+
+
+async def get_exam_final(subject_id: int, section: str, year_id: int):
+    """Return approved final exam materials for a year."""
+    return await get_materials_by_category(
+        subject_id, section, "exam_final", year_id=year_id
+    )
+
+
+async def has_exam_mid(subject_id: int, section: str, year_id: int) -> bool:
+    """Check if midterm exam model exists for a year."""
+    return bool(await get_exam_mid(subject_id, section, year_id))
+
+
+async def has_exam_final(subject_id: int, section: str, year_id: int) -> bool:
+    """Check if final exam model exists for a year."""
+    return bool(await get_exam_final(subject_id, section, year_id))

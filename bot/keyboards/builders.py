@@ -296,7 +296,7 @@ def build_types_menu(types: dict[str, dict]) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
-def build_exam_menu(mid_exists: bool, final_exists: bool) -> ReplyKeyboardMarkup:
+def build_exams_menu(mid_exists: bool, final_exists: bool) -> ReplyKeyboardMarkup:
     """Build submenu for exam models."""
     row: list[str] = []
     if mid_exists:
@@ -329,5 +329,5 @@ __all__ = [
     "build_years_menu",
     "build_lectures_menu",
     "build_types_menu",
-    "build_exam_menu",
+    "build_exams_menu",
 ]
