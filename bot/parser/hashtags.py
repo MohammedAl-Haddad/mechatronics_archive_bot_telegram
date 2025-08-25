@@ -179,6 +179,19 @@ def parse_hashtags(text: str) -> Tuple[ParsedHashtags, str | None]:
         return info, msg
 
     ct = info.content_type
+    has_booklet_tag = any(
+        CONTENT_TYPE_ALIASES.get(t.split()[0].lstrip("#")) == "booklet"
+        for t in tags
+    )
+    has_board_tag = any(
+        CONTENT_TYPE_ALIASES.get(t.split()[0].lstrip("#")) == "board_images"
+        for t in tags
+    )
+    if has_booklet_tag and (info.lecture_no or has_board_tag):
+        return _err(
+            "هذا الوسم خاص بالملازم. لنشر صور المحاضرة استخدم: #صور_السبورة\n"
+            "#المحاضرة_1: العنوان\n#1446"
+        )
     if ct in {"daily_brief", "board_images"}:
         expected = ["content", "lecture", "year"]
         if sequence[:3] != expected:
