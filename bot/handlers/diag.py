@@ -33,7 +33,6 @@ async def diag_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     section_code,
                     year,
                     lec["lecture_no"],
-                    only_approved=False,
                 )
                 lines.append(f"  lec{lec['lecture_no']}: {list(types.keys())}")
             cur = await db.execute(

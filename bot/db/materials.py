@@ -529,9 +529,15 @@ async def get_types_for_lecture(
     section: str,
     year: int,
     lecture_no: int,
-    only_approved: bool = True,
-) -> dict[str, tuple[int, str | None, int | None, int | None]]:
-    """Return available types for a lecture mapped to material records."""
+) -> dict[str, dict]:
+    """Return available types for a lecture mapped to material rows.
+
+    The returned dictionary maps each ``category`` to a row-like mapping with
+    ``id``, ``url``, ``tg_storage_chat_id`` and ``tg_storage_msg_id`` keys.
+    Empty or NULL records are skipped, ensuring callers receive only types that
+    have actual stored content (URL or Telegram message).
+    """
+
     async with aiosqlite.connect(DB_PATH) as db:
         q = (
             """
@@ -543,14 +549,20 @@ async def get_types_for_lecture(
             """
         )
         params: list = [subject_id, section, str(year), f"%{lecture_no}%"]
-        if only_approved:
-            q += " AND i.status='approved'"
+        q += " AND i.status='approved'"
         cur = await db.execute(q, params)
         rows = await cur.fetchall()
 
-    result: dict[str, tuple[int, str | None, int | None, int | None]] = {}
+    result: dict[str, dict] = {}
     for cat, _id, url, chat_id, msg_id in rows:
-        result[cat] = (_id, url, chat_id, msg_id)
+        if not url and not msg_id:
+            continue
+        result[cat] = {
+            "id": _id,
+            "url": url,
+            "tg_storage_chat_id": chat_id,
+            "tg_storage_msg_id": msg_id,
+        }
     return result
 
 

@@ -21,7 +21,6 @@ from bot.db import (
     get_materials_by_category,
     get_lecture_materials,
     list_categories_for_subject_section_year,
-    list_categories_for_lecture,
     get_years,
     get_lectures_by_year,
     get_types_for_lecture,
@@ -58,7 +57,6 @@ from ..keyboards.builders import (
     generate_lecturers_keyboard,
     generate_lecture_titles_keyboard,
     generate_year_category_menu_keyboard,
-    generate_lecture_category_menu_keyboard,
     build_years_menu,
     build_lectures_menu,
     build_types_menu,
@@ -227,14 +225,16 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     if top_type == "lecture_category_menu":
-        subject_id = nav.data.get("subject_id")
-        section_code = nav.data.get("section")
-        year_id = nav.data.get("year_id")
-        lecturer_id = nav.data.get("lecturer_id")
         lecture_title = nav.data.get("lecture_title", "")
-        cats = await list_categories_for_lecture(subject_id, section_code, lecture_title, year_id=year_id, lecturer_id=lecturer_id)
-        msg = f"المحاضرة: {lecture_title}\nاختر نوع الملف:" if cats else "لا توجد أنواع ملفات لهذه المحاضرة."
-        return await update.message.reply_text(msg, reply_markup=generate_lecture_category_menu_keyboard(cats))
+        types_map = nav.data.get("types_map", {})
+        msg = (
+            f"المحاضرة: {lecture_title}\nاختر نوع الملف:"
+            if types_map
+            else "لا توجد أنواع ملفات لهذه المحاضرة."
+        )
+        return await update.message.reply_text(
+            msg, reply_markup=build_types_menu(types_map)
+        )
 
     return await update.message.reply_text("اختر من القائمة:", reply_markup=main_menu)
 
