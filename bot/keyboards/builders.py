@@ -305,6 +305,23 @@ def build_lectures_menu(lectures: list[dict]) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
+def build_lecturers_menu(lecturers: list[dict]) -> ReplyKeyboardMarkup:
+    """Build a keyboard listing lecturers by name.
+
+    ``lecturers`` should contain dictionaries with ``id``, ``tag`` and
+    ``display`` keys. The ``display`` value is normalized with
+    :func:`to_display_name` before being used as a button label.
+    """
+
+    labels = [to_display_name(l.get("display") or l.get("tag", "")) for l in lecturers]
+    keyboard = _rows(labels, cols=2)
+    if keyboard:
+        keyboard.append([BACK])
+    else:
+        keyboard = [[BACK]]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
 def build_types_menu(types: dict[str, dict]) -> ReplyKeyboardMarkup:
     """Build menu for available content types.
 
@@ -361,6 +378,7 @@ __all__ = [
     "build_year_root_menu",
     "build_years_menu",
     "build_lectures_menu",
+    "build_lecturers_menu",
     "build_types_menu",
     "build_exams_menu",
 ]

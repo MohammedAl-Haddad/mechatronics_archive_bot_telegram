@@ -10,7 +10,7 @@ from bot.db import (
     get_subjects_by_level_and_term,
     term_feature_flags,
     get_available_sections_for_subject,
-    get_lecturers_for_subject_section,
+    get_lecturers,
     has_lecture_category,
     get_years_for_subject_section_lecturer,
     list_lecture_titles,
@@ -58,7 +58,7 @@ from ..keyboards.builders import (
     generate_subject_sections_keyboard_dynamic,
     generate_lecturer_filter_keyboard,
     build_subject_section_menu,
-    generate_lecturers_keyboard,
+    build_lecturers_menu,
     generate_lecture_titles_keyboard,
     generate_year_category_menu_keyboard,
     build_years_menu,
@@ -140,7 +140,7 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if top_type == "section":
         subject_id = nav.data.get("subject_id")
         section_code = nav.data.get("section")
-        lecturers = await get_lecturers_for_subject_section(subject_id, section_code)
+        lecturers = await get_lecturers(subject_id, section_code)
         has_syllabus = bool(
             await get_materials_by_category(subject_id, section_code, "syllabus")
         )
@@ -204,8 +204,14 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if top_type == "lecturer_list":
         subject_id = nav.data.get("subject_id")
         section_code = nav.data.get("section")
-        lecturers = await get_lecturers_for_subject_section(subject_id, section_code)
-        return await update.message.reply_text("اختر المحاضر:", reply_markup=generate_lecturers_keyboard(lecturers))
+        lecturers = await get_lecturers(subject_id, section_code)
+        nav.data["lecturers_map"] = {
+            to_display_name(l.get("display") or l.get("tag", "")): l["id"]
+            for l in lecturers
+        }
+        return await update.message.reply_text(
+            "اختر المحاضر:", reply_markup=build_lecturers_menu(lecturers)
+        )
 
     if top_type == "lecture_list":
         subject_id = nav.data.get("subject_id")
@@ -417,7 +423,7 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nav.set_section(text, section_code)
 
         subject_id = nav.data.get("subject_id")
-        lecturers = await get_lecturers_for_subject_section(subject_id, section_code)
+        lecturers = await get_lecturers(subject_id, section_code)
         has_syllabus = bool(
             await get_materials_by_category(subject_id, section_code, "syllabus")
         )
@@ -457,17 +463,20 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
         if text == FILTER_BY_LECTURER:
-            lecturers = await get_lecturers_for_subject_section(subject_id, section_code)
+            lecturers = await get_lecturers(subject_id, section_code)
             if not lecturers:
                 return await update.message.reply_text(
                     "لا يوجد محاضرون مرتبطون بهذا القسم.",
                     reply_markup=generate_subject_sections_keyboard_dynamic([]),
                 )
-            lect_map = {to_display_name(name): _id for _id, name in lecturers}
+            lect_map = {
+                to_display_name(l.get("display") or l.get("tag", "")): l["id"]
+                for l in lecturers
+            }
             nav.data["lecturers_map"] = lect_map
             nav.push_view("lecturer_list")
             return await update.message.reply_text(
-                "اختر المحاضر:", reply_markup=generate_lecturers_keyboard(lecturers)
+                "اختر المحاضر:", reply_markup=build_lecturers_menu(lecturers)
             )
 
         if text == LIST_LECTURES:
