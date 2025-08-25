@@ -10,7 +10,6 @@ from bot.db import (
     get_subjects_by_level_and_term,
     term_feature_flags,
     get_available_sections_for_subject,
-    get_years_for_subject_section,
     get_lecturers_for_subject_section,
     has_lecture_category,
     get_years_for_subject_section_lecturer,
@@ -56,7 +55,6 @@ from ..keyboards.builders import (
     generate_subject_sections_keyboard_dynamic,
     generate_lecturer_filter_keyboard,
     build_subject_section_menu,
-    generate_years_keyboard,
     generate_lecturers_keyboard,
     generate_lecture_titles_keyboard,
     generate_year_category_menu_keyboard,
@@ -154,13 +152,19 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         subject_id = nav.data.get("subject_id")
         section_code = nav.data.get("section")
         lecturer_id = nav.data.get("lecturer_id")
+        section_code = normalize_section(section_code)
         if lecturer_id:
-            years = await get_years_for_subject_section_lecturer(subject_id, section_code, lecturer_id)
+            years_pairs = await get_years_for_subject_section_lecturer(
+                subject_id, section_code, lecturer_id
+            )
+            years = [int(name) for _id, name in years_pairs]
             msg = "اختر السنة (للمحاضر المحدد):"
         else:
-            years = await get_years_for_subject_section(subject_id, section_code)
+            years = await get_years(subject_id, section_code)
             msg = "اختر السنة:"
-        return await update.message.reply_text(msg, reply_markup=generate_years_keyboard(years))
+        return await update.message.reply_text(
+            msg, reply_markup=build_years_menu(years)
+        )
 
     if top_type == "lecturer_list":
         subject_id = nav.data.get("subject_id")
@@ -501,22 +505,36 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lecturer_label = next((lbl for t, lbl in nav.stack if t == "lecturer"), "")
 
         if not (subject_id and section_code and lecturer_id):
-            return await update.message.reply_text("ابدأ باختيار المادة → القسم → المحاضر.", reply_markup=main_menu)
+            return await update.message.reply_text(
+                "ابدأ باختيار المادة → القسم → المحاضر.", reply_markup=main_menu
+            )
 
         if text == CHOOSE_YEAR_FOR_LECTURER:
-            years = await get_years_for_subject_section_lecturer(subject_id, section_code, lecturer_id)
-            if not years:
+            years_pairs = await get_years_for_subject_section_lecturer(
+                subject_id, section_code, lecturer_id
+            )
+            if not years_pairs:
                 years_exist = False
-                lectures_exist = await list_lecture_titles_by_lecturer(subject_id, section_code, lecturer_id)
+                lectures_exist = await list_lecture_titles_by_lecturer(
+                    subject_id, section_code, lecturer_id
+                )
                 return await update.message.reply_text(
                     "لا توجد سنوات مرتبطة بمحاضرات هذا المحاضر.",
-                    reply_markup=generate_lecturer_filter_keyboard(years_exist, bool(lectures_exist)),
+                    reply_markup=generate_lecturer_filter_keyboard(
+                        years_exist, bool(lectures_exist)
+                    ),
                 )
+            years = [int(name) for _id, name in years_pairs]
             nav.push_view("year_list")
-            return await update.message.reply_text(f"المحاضر: {lecturer_label}\nاختر السنة:", reply_markup=generate_years_keyboard(years))
+            return await update.message.reply_text(
+                f"المحاضر: {lecturer_label}\nاختر السنة:",
+                reply_markup=build_years_menu(years),
+            )
 
         if text == LIST_LECTURES_FOR_LECTURER:
-            titles = await list_lecture_titles_by_lecturer(subject_id, section_code, lecturer_id)
+            titles = await list_lecture_titles_by_lecturer(
+                subject_id, section_code, lecturer_id
+            )
             if not titles:
                 years = await get_years_for_subject_section_lecturer(subject_id, section_code, lecturer_id)
                 return await update.message.reply_text(

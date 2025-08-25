@@ -444,24 +444,50 @@ async def list_categories_for_lecture(
 async def get_years(
     subject_id: int, section: str, only_approved: bool = True
 ) -> list[int]:
-    """Return available Hijri years for *subject* and *section*."""
+    """Return available Hijri years for *subject* and *section*.
+
+    The function looks up distinct years associated with a subject's *section*.
+    It supports both the modern ``year_id`` reference to the ``years`` table and
+    a legacy ``year`` column on ``materials`` if present. Only materials with an
+    ``approved`` ingestion status are considered by default.
+    """
+
     async with aiosqlite.connect(DB_PATH) as db:
-        q = (
-            """
-            SELECT DISTINCT y.name
-            FROM materials m
-            JOIN years y ON y.id = m.year_id
-            JOIN ingestions i ON i.material_id = m.id
-            WHERE m.subject_id=? AND m.section=? AND m.year_id IS NOT NULL
-            """
-        )
+        # Detect whether a legacy ``year`` column exists to maintain backward
+        # compatibility with older databases that didn't use ``year_id``.
+        cur = await db.execute("PRAGMA table_info(materials)")
+        cols = [row[1] for row in await cur.fetchall()]
+        has_year_col = "year" in cols
+
+        if has_year_col:
+            q = (
+                """
+                SELECT DISTINCT COALESCE(y.name, m.year) AS yname
+                FROM materials m
+                LEFT JOIN years y ON y.id = m.year_id
+                JOIN ingestions i ON i.material_id = m.id
+                WHERE m.subject_id=? AND m.section=?
+                  AND COALESCE(y.name, m.year) IS NOT NULL
+                """
+            )
+        else:
+            q = (
+                """
+                SELECT DISTINCT y.name AS yname
+                FROM materials m
+                JOIN years y ON y.id = m.year_id
+                JOIN ingestions i ON i.material_id = m.id
+                WHERE m.subject_id=? AND m.section=? AND m.year_id IS NOT NULL
+                """
+            )
+
         params: list = [subject_id, section]
         if only_approved:
             q += " AND i.status='approved'"
-        q += " ORDER BY y.name"
+        q += " ORDER BY yname"
         cur = await db.execute(q, params)
         rows = await cur.fetchall()
-        return [int(r[0]) for r in rows]
+        return [int(r[0]) for r in rows if r[0]]
 
 
 async def get_lectures_by_year(
