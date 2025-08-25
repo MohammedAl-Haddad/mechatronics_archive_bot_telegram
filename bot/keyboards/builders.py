@@ -1,4 +1,4 @@
-from telegram import ReplyKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from .constants import (
     TERM_MENU_SHOW_SUBJECTS,
@@ -133,6 +133,25 @@ def generate_section_filters_keyboard_dynamic(
     keyboard.append([BACK, BACK_TO_SUBJECTS])
     keyboard.append([BACK_TO_LEVELS])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
+def build_subject_section_menu(
+    has_syllabus: bool, has_lecturers: bool
+) -> InlineKeyboardMarkup:
+    """Build inline menu for a subject's section."""
+    row: list[InlineKeyboardButton] = [
+        InlineKeyboardButton(FILTER_BY_YEAR, callback_data="year")
+    ]
+    if has_lecturers:
+        row.append(InlineKeyboardButton(FILTER_BY_LECTURER, callback_data="lecturer"))
+
+    keyboard: list[list[InlineKeyboardButton]] = [row]
+    if has_syllabus:
+        keyboard.append(
+            [InlineKeyboardButton("📄 التوصيف", callback_data="syllabus")]
+        )
+    keyboard.append([InlineKeyboardButton(BACK, callback_data="back")])
+    return InlineKeyboardMarkup(keyboard)
 
 
 def generate_years_keyboard(years: list[tuple[int, str]]) -> ReplyKeyboardMarkup:
@@ -277,6 +296,7 @@ __all__ = [
     "generate_lecturer_filter_keyboard",
     "generate_year_category_menu_keyboard",
     "generate_lecture_category_menu_keyboard",
+    "build_subject_section_menu",
     "build_years_menu",
     "build_lectures_menu",
     "build_types_menu",

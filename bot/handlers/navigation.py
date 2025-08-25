@@ -55,7 +55,7 @@ from ..keyboards.builders import (
     generate_term_menu_keyboard_dynamic,
     generate_subject_sections_keyboard_dynamic,
     generate_lecturer_filter_keyboard,
-    generate_section_filters_keyboard_dynamic,
+    build_subject_section_menu,
     generate_years_keyboard,
     generate_lecturers_keyboard,
     generate_lecture_titles_keyboard,
@@ -120,12 +120,13 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if top_type == "section":
         subject_id = nav.data.get("subject_id")
         section_code = nav.data.get("section")
-        years = await get_years_for_subject_section(subject_id, section_code)
         lecturers = await get_lecturers_for_subject_section(subject_id, section_code)
-        lectures_exist = await has_lecture_category(subject_id, section_code)
+        has_syllabus = bool(
+            await get_materials_by_category(subject_id, section_code, "syllabus")
+        )
         return await update.message.reply_text(
-            "اختر طريقة التصفية:",
-            reply_markup=generate_section_filters_keyboard_dynamic(bool(years), bool(lecturers), lectures_exist),
+            "اختر:",
+            reply_markup=build_subject_section_menu(has_syllabus, bool(lecturers)),
         )
 
     if top_type == "year":
@@ -358,14 +359,14 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nav.set_section(text, section_code)
 
         subject_id = nav.data.get("subject_id")
-
-        years = await get_years_for_subject_section(subject_id, section_code)
         lecturers = await get_lecturers_for_subject_section(subject_id, section_code)
-        lectures_exist = await has_lecture_category(subject_id, section_code)
+        has_syllabus = bool(
+            await get_materials_by_category(subject_id, section_code, "syllabus")
+        )
 
         return await update.message.reply_text(
-            "اختر طريقة التصفية:",
-            reply_markup=generate_section_filters_keyboard_dynamic(bool(years), bool(lecturers), lectures_exist),
+            "اختر:",
+            reply_markup=build_subject_section_menu(has_syllabus, bool(lecturers)),
         )
 
     # 8.1) تصفية حسب السنة/المحاضر/عرض كل المحاضرات
