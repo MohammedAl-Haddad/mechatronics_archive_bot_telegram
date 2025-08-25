@@ -24,6 +24,7 @@ from bot.db import (
     get_years,
     get_lectures_by_year,
     get_types_for_lecture,
+    get_material,
     get_year_specials,
 )
 
@@ -621,71 +622,83 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if text in lectures_map:
             lecture_no = lectures_map[text]
             nav.set_lecture(text)
+            nav.data["lecture_no"] = lecture_no
             nav.push_view("lecture_category_menu")
 
             types_map = await get_types_for_lecture(
                 subject_id, section_code, year, lecture_no
             )
             if not types_map:
-                nav.back_one()
-                lectures = await get_lectures_by_year(subject_id, section_code, year)
-                nav.data["lectures_map"] = {
-                    (f"المحاضرة {arabic_ordinal(it['lecture_no'])}" + (f": {it['title']}" if it.get('title') else "")): it["lecture_no"]
-                    for it in lectures
-                }
                 return await update.message.reply_text(
                     "لا توجد أنواع ملفات لهذه المحاضرة.",
-                    reply_markup=build_lectures_menu(lectures),
+                    reply_markup=build_types_menu({}),
                 )
 
             nav.data["types_map"] = types_map
+            type_label_map = {
+                CATEGORY_TO_LABEL.get(cat, to_display_name(cat)): cat
+                for cat in types_map
+            }
+            nav.data["type_label_map"] = type_label_map
             return await update.message.reply_text(
                 "اختر نوع الملف:",
-                reply_markup=build_types_menu(list(types_map.keys())),
+                reply_markup=build_types_menu(types_map),
             )
 
 
   
     # 8.4) اختيار تصنيف داخل "قائمة تصنيفات المحاضرة"
-    if text in LABEL_TO_CATEGORY:
+    type_label_map = nav.data.get("type_label_map", {})
+    if text in type_label_map:
         stack = nav.stack
         current = stack[-1][0] if stack else None
 
         if current == "lecture_category_menu":
-            category = LABEL_TO_CATEGORY[text]
-            types_map = nav.data.get("types_map", {})
-            material = types_map.get(category)
-            if material:
-                _id, url, chat_id, msg_id = material
-                if msg_id and chat_id:
-                    link = None
-                    if chat_id == ARCHIVE_CHANNEL_ID:
-                        link = build_archive_link(chat_id, msg_id)
-                    markup = (
-                        InlineKeyboardMarkup(
-                            [[InlineKeyboardButton("🔗 فتح في الأرشيف", url=link)]]
-                        )
-                        if link
-                        else None
+            category = type_label_map[text]
+            year = nav.data.get("year_id")
+            lecture_no = nav.data.get("lecture_no")
+            lecturer_id = nav.data.get("lecturer_id")
+            material = await get_material(
+                subject_id, section_code, year, lecture_no, category, lecturer_id
+            )
+            if material and material[2] and material[3]:
+                chat_id, msg_id = material[2], material[3]
+                link = None
+                if chat_id == ARCHIVE_CHANNEL_ID:
+                    link = build_archive_link(chat_id, msg_id)
+                markup = (
+                    InlineKeyboardMarkup(
+                        [[InlineKeyboardButton("🔗 فتح في الأرشيف", url=link)]]
                     )
-                    await context.bot.copy_message(
-                        chat_id=update.effective_chat.id,
-                        from_chat_id=chat_id,
-                        message_id=msg_id,
-                        reply_markup=markup,
-                    )
-                    logger.info(
-                        "send subject=%s section=%s year=%s lecture=%s type=%s",
-                        subject_id,
-                        section_code,
-                        nav.data.get("year_id"),
-                        nav.data.get("lecture_title"),
-                        category,
-                    )
-                elif url:
-                    await update.message.reply_text(f"📄 {text}\n{url}")
+                    if link
+                    else None
+                )
+                await context.bot.copy_message(
+                    chat_id=update.effective_chat.id,
+                    from_chat_id=chat_id,
+                    message_id=msg_id,
+                    reply_markup=markup,
+                )
+                logger.info(
+                    "send subject=%s section=%s year=%s lecture=%s type=%s",
+                    subject_id,
+                    section_code,
+                    year,
+                    nav.data.get("lecture_title"),
+                    category,
+                )
+            else:
+                await update.message.reply_text("العنصر غير متاح حاليًا.")
+                logger.warning(
+                    "missing material subject=%s section=%s year=%s lecture=%s type=%s",
+                    subject_id,
+                    section_code,
+                    year,
+                    nav.data.get("lecture_title"),
+                    category,
+                )
             return await update.message.reply_text(
-                "اختر نوعًا آخر:", reply_markup=build_types_menu(list(types_map.keys()))
+                "اختر نوعًا آخر:", reply_markup=build_types_menu(nav.data.get("types_map", {}))
             )
 
 
