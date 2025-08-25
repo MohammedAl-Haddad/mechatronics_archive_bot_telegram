@@ -39,7 +39,10 @@ def generate_levels_keyboard(levels: list) -> ReplyKeyboardMarkup:
     """Display available levels."""
     names = [name for _id, name in levels]
     keyboard = _rows(names, cols=2)
-    keyboard.append(["🔙 العودة للقائمة الرئيسية"])
+    if keyboard:
+        keyboard.append([BACK])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
@@ -63,8 +66,11 @@ def generate_subjects_keyboard(subjects: list) -> ReplyKeyboardMarkup:
     """Display subjects for the current term."""
     names = [name for (name,) in subjects]
     keyboard = _rows(names, cols=2)
-    keyboard.append([BACK])
-    keyboard.append([BACK_TO_LEVELS])
+    if keyboard:
+        keyboard.append([BACK])
+        keyboard.append([BACK_TO_LEVELS])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
@@ -110,7 +116,10 @@ def generate_subject_sections_keyboard_dynamic(sections: list[str]) -> ReplyKeyb
     """Display available sections for a subject."""
     labels = [SECTION_LABELS[s] for s in sections if s in SECTION_LABELS]
     keyboard = _rows(labels, cols=2)
-    keyboard.append([BACK])
+    if keyboard:
+        keyboard.append([BACK])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -158,8 +167,11 @@ def generate_years_keyboard(years: list[tuple[int, str]]) -> ReplyKeyboardMarkup
     """Display available years for a subject/section."""
     names = [name for _id, name in years]
     keyboard = _rows(names, cols=2)
-    keyboard.append([BACK, BACK_TO_SUBJECTS])
-    keyboard.append([BACK_TO_LEVELS])
+    if keyboard:
+        keyboard.append([BACK, BACK_TO_SUBJECTS])
+        keyboard.append([BACK_TO_LEVELS])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -167,8 +179,11 @@ def generate_lecturers_keyboard(lecturers: list[tuple[int, str]]) -> ReplyKeyboa
     """Display lecturers for the subject/section."""
     names = [to_display_name(name) for _id, name in lecturers]
     keyboard = _rows(names, cols=2)
-    keyboard.append([BACK, BACK_TO_SUBJECTS])
-    keyboard.append([BACK_TO_LEVELS])
+    if keyboard:
+        keyboard.append([BACK, BACK_TO_SUBJECTS])
+        keyboard.append([BACK_TO_LEVELS])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -177,8 +192,11 @@ def generate_lecture_titles_keyboard(titles: list[str]) -> ReplyKeyboardMarkup:
     # Clean up titles to avoid underscores or hidden characters in buttons
     names = [to_display_name(t) for t in titles]
     keyboard = _rows(names, cols=2)
-    keyboard.append([BACK, BACK_TO_SUBJECTS])
-    keyboard.append([BACK_TO_LEVELS])
+    if keyboard:
+        keyboard.append([BACK, BACK_TO_SUBJECTS])
+        keyboard.append([BACK_TO_LEVELS])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -195,7 +213,10 @@ def generate_lecturer_filter_keyboard(
     keyboard: list[list[str]] = []
     if row:
         keyboard.append(row)
-    keyboard.append([BACK])
+    if keyboard:
+        keyboard.append([BACK])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -213,8 +234,11 @@ def generate_year_category_menu_keyboard(
         keyboard.append(first_row)
     keyboard += _rows(labels, cols=2)
 
-    keyboard.append([BACK, BACK_TO_SUBJECTS])
-    keyboard.append([BACK_TO_LEVELS])
+    if keyboard:
+        keyboard.append([BACK, BACK_TO_SUBJECTS])
+        keyboard.append([BACK_TO_LEVELS])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -222,8 +246,11 @@ def generate_lecture_category_menu_keyboard(categories: list[str]) -> ReplyKeybo
     """Display categories for a specific lecture."""
     labels = [CATEGORY_TO_LABEL.get(c, c) for c in categories]
     keyboard = _rows(labels, cols=2)
-    keyboard.append([BACK, BACK_TO_SUBJECTS])
-    keyboard.append([BACK_TO_LEVELS])
+    if keyboard:
+        keyboard.append([BACK, BACK_TO_SUBJECTS])
+        keyboard.append([BACK_TO_LEVELS])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -243,9 +270,10 @@ def build_years_menu(years: list[int]) -> ReplyKeyboardMarkup:
     """Build a simple menu for available years."""
     labels = [str(y) for y in years if y]
     keyboard = _rows(labels, cols=2)
-    if not keyboard:
-        keyboard = []
-    keyboard.append([BACK])
+    if keyboard:
+        keyboard.append([BACK])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -270,9 +298,10 @@ def build_lectures_menu(lectures: list[dict]) -> ReplyKeyboardMarkup:
             label += f": {title}"
         labels.append(label)
     keyboard = _rows(labels, cols=1)
-    if not keyboard:
-        keyboard = []
-    keyboard.append([BACK])
+    if keyboard:
+        keyboard.append([BACK])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -290,9 +319,10 @@ def build_types_menu(types: dict[str, dict]) -> ReplyKeyboardMarkup:
     ]
     labels = [lbl for lbl in labels if lbl]
     keyboard = _rows(labels, cols=2)
-    if not keyboard:
-        keyboard = []
-    keyboard.append([BACK])
+    if keyboard:
+        keyboard.append([BACK])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -306,7 +336,10 @@ def build_exams_menu(mid_exists: bool, final_exists: bool) -> ReplyKeyboardMarku
     keyboard: list[list[str]] = []
     if row:
         keyboard.append(row)
-    keyboard.append([BACK])
+    if keyboard:
+        keyboard.append([BACK])
+    else:
+        keyboard = [[BACK]]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 

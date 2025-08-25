@@ -110,13 +110,32 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         subject_label = stack[-1][1] if stack else ""
         subject_id = nav.data.get("subject_id")
         sections = await get_available_sections_for_subject(subject_id) if subject_id else []
-        msg = f"المادة: {subject_label}\nاختر القسم:" if sections else "لا توجد أقسام متاحة لهذه المادة حتى الآن."
-        return await update.message.reply_text(msg, reply_markup=generate_subject_sections_keyboard_dynamic(sections))
+        logger.info(
+            "list sections subject=%s count=%s",
+            subject_id,
+            len(sections),
+        )
+        msg = (
+            f"المادة: {subject_label}\nاختر القسم:"
+            if sections
+            else "لا توجد أقسام متاحة لهذه المادة حتى الآن."
+        )
+        return await update.message.reply_text(
+            msg, reply_markup=generate_subject_sections_keyboard_dynamic(sections)
+        )
 
     if top_type == "subject_list":
         subjects = await get_subjects_by_level_and_term(level_id, term_id)
+        logger.info(
+            "list subjects level=%s term=%s count=%s",
+            level_id,
+            term_id,
+            len(subjects),
+        )
         msg = "اختر المادة:" if subjects else "لا توجد مواد لهذا الترم."
-        return await update.message.reply_text(msg, reply_markup=generate_subjects_keyboard(subjects))
+        return await update.message.reply_text(
+            msg, reply_markup=generate_subjects_keyboard(subjects)
+        )
 
     if top_type == "section":
         subject_id = nav.data.get("subject_id")
@@ -136,8 +155,14 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         year_label = stack[-1][1]
         year_id = nav.data.get("year_id")
         titles = await list_lecture_titles_by_year(subject_id, section_code, year_id)
-        msg = f"السنة: {year_label}\nاختر محاضرة:" if titles else "لا توجد محاضرات لهذه السنة."
-        return await update.message.reply_text(msg, reply_markup=generate_lecture_titles_keyboard(titles))
+        msg = (
+            f"السنة: {year_label}\nاختر محاضرة:"
+            if titles
+            else "لا توجد عناصر معتمدة هنا حاليًا."
+        )
+        return await update.message.reply_text(
+            msg, reply_markup=generate_lecture_titles_keyboard(titles)
+        )
 
     if top_type == "lecturer":
         subject_id = nav.data.get("subject_id")
@@ -165,6 +190,13 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             years = await get_years(subject_id, section_code)
             msg = "اختر السنة:"
+        logger.info(
+            "list years subject=%s section=%s lecturer=%s count=%s",
+            subject_id,
+            section_code,
+            lecturer_id,
+            len(years),
+        )
         return await update.message.reply_text(
             msg, reply_markup=build_years_menu(years)
         )
@@ -194,8 +226,12 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
             titles = await list_lecture_titles_by_year(subject_id, section_code, year_id)
             heading = "اختر محاضرة (حسب السنة):"
 
-        msg = heading if titles else "لا توجد محاضرات مطابقة."
-        return await update.message.reply_text(msg, reply_markup=generate_lecture_titles_keyboard(titles))
+        msg = (
+            heading if titles else "لا توجد عناصر معتمدة هنا حاليًا."
+        )
+        return await update.message.reply_text(
+            msg, reply_markup=generate_lecture_titles_keyboard(titles)
+        )
 
     if top_type == "year_category_menu":
         subject_id = nav.data.get("subject_id")
@@ -234,7 +270,7 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = (
             f"المحاضرة: {lecture_title}\nاختر نوع الملف:"
             if types_map
-            else "لا توجد أنواع ملفات لهذه المحاضرة."
+            else "لا توجد عناصر معتمدة هنا حاليًا."
         )
         return await update.message.reply_text(
             msg, reply_markup=build_types_menu(types_map)
@@ -436,9 +472,15 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text == LIST_LECTURES:
             titles = await list_lecture_titles(subject_id, section_code)
+            logger.info(
+                "list lectures subject=%s section=%s count=%s",
+                subject_id,
+                section_code,
+                len(titles),
+            )
             if not titles:
                 return await update.message.reply_text(
-                    "لا توجد محاضرات متاحة.",
+                    "لا توجد عناصر معتمدة هنا حاليًا.",
                     reply_markup=generate_subject_sections_keyboard_dynamic([]),
                 )
 
