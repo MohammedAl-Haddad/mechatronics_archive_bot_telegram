@@ -1,10 +1,15 @@
+import re
+
+
 def normalize_section(s: str | None) -> str | None:
-    """Return canonical section code (theory/discussion/lab) or None.
-    Accepts Arabic labels and English codes, ignoring case and spaces.
+    """Return canonical section code (theory/lab/discussion) or ``None``.
+
+    Accepts Arabic labels or English codes, ignoring case, spaces and
+    underscores.
     """
     if not s:
         return None
-    key = s.strip().lower()
+    key = re.sub(r"[_\s]+", "", s).lower()
     mapping = {
         "نظري": "theory",
         "عملي": "lab",
