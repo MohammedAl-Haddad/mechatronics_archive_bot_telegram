@@ -566,13 +566,36 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     year_id=year_id, lecturer_id=lecturer_id
                 )
                 if not mats:
-                    titles_exist = False
-                    if lecturer_id and year_id:
-                        titles_exist = bool(await list_lecture_titles_by_lecturer_year(subject_id, section_code, lecturer_id, year_id))
+                    fallback_mats = await get_materials_by_category(
+                        subject_id, section_code, category
+                    )
+                    if fallback_mats:
+                        await update.message.reply_text(
+                            "لم يُعثَر على ملفات لهذا التصنيف ضمن السنة أو المحاضر المحدَّدين. "
+                            "تم عرض نتائج بدون تقييد، فالرجاء التحقق من وسوم السنة والمحاضر إذا اختلفت.",
+                        )
+                        mats = fallback_mats
                     else:
-                        titles_exist = bool(await list_lecture_titles_by_year(subject_id, section_code, year_id))
-                    cats = await list_categories_for_subject_section_year(subject_id, section_code, year_id, lecturer_id=lecturer_id)
-                    return await update.message.reply_text("لا توجد ملفات لهذا التصنيف.", reply_markup=generate_year_category_menu_keyboard(cats, titles_exist))
+                        titles_exist = False
+                        if lecturer_id and year_id:
+                            titles_exist = bool(
+                                await list_lecture_titles_by_lecturer_year(
+                                    subject_id, section_code, lecturer_id, year_id
+                                )
+                            )
+                        else:
+                            titles_exist = bool(
+                                await list_lecture_titles_by_year(
+                                    subject_id, section_code, year_id
+                                )
+                            )
+                        cats = await list_categories_for_subject_section_year(
+                            subject_id, section_code, year_id, lecturer_id=lecturer_id
+                        )
+                        return await update.message.reply_text(
+                            "لا توجد ملفات لهذا التصنيف. قد تكون السنة غير مطابقة أو الوسوم ناقصة.",
+                            reply_markup=generate_year_category_menu_keyboard(cats, titles_exist),
+                        )
 
                 for _id, title, url, chat_id, msg_id in mats:
                     if msg_id and chat_id:

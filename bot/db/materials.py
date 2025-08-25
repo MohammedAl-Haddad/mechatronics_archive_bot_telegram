@@ -360,10 +360,10 @@ async def get_materials_by_category(
     """
     params = [subject_id, section, category]
     if year_id is not None:
-        q += " AND year_id=?"
+        q += " AND (year_id=? OR year_id IS NULL)"
         params.append(year_id)
     if lecturer_id is not None:
-        q += " AND lecturer_id=?"
+        q += " AND (lecturer_id=? OR lecturer_id IS NULL)"
         params.append(lecturer_id)
     if title is not None:
         q += " AND title=?"
