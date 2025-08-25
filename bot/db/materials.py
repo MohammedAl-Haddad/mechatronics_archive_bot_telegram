@@ -588,12 +588,10 @@ async def get_material(
     return (row[0], row[1], row[2], row[3]) if row else None
 
 
-async def get_year_specials(
-    subject_id: int, section: str, year: int, only_approved: bool = True
-) -> dict:
+async def get_year_specials(subject_id: int, section: str, year: int) -> dict:
     """Return flags for booklet and exam models in a year."""
     async with aiosqlite.connect(DB_PATH) as db:
-        q = (
+        cur = await db.execute(
             """
             SELECT
                 SUM(CASE WHEN m.category='booklet' THEN 1 ELSE 0 END),
@@ -603,12 +601,10 @@ async def get_year_specials(
             JOIN years y ON y.id = m.year_id
             JOIN ingestions i ON i.material_id = m.id
             WHERE m.subject_id=? AND m.section=? AND y.name=?
-            """
+              AND i.status='approved'
+            """,
+            (subject_id, section, str(year)),
         )
-        params: list = [subject_id, section, str(year)]
-        if only_approved:
-            q += " AND i.status='approved'"
-        cur = await db.execute(q, params)
         row = await cur.fetchone()
 
     booklet, exam_mid, exam_final = row if row else (0, 0, 0)

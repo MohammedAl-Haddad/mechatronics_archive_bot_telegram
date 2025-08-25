@@ -227,6 +227,18 @@ def generate_lecture_category_menu_keyboard(categories: list[str]) -> ReplyKeybo
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
+def build_year_root_menu(has_booklet: bool, has_exams: bool) -> ReplyKeyboardMarkup:
+    """Build root menu for a selected year."""
+    row: list[str] = [YEAR_MENU_LECTURES]
+    if has_booklet:
+        row.append("الملزمة")
+    if has_exams:
+        row.append("النماذج")
+
+    keyboard = [row, [BACK]]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
 def build_years_menu(years: list[int]) -> ReplyKeyboardMarkup:
     """Build a simple menu for available years."""
     labels = [str(y) for y in years if y]
@@ -297,6 +309,7 @@ __all__ = [
     "generate_year_category_menu_keyboard",
     "generate_lecture_category_menu_keyboard",
     "build_subject_section_menu",
+    "build_year_root_menu",
     "build_years_menu",
     "build_lectures_menu",
     "build_types_menu",
