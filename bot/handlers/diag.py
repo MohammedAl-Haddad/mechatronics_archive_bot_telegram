@@ -25,10 +25,16 @@ async def diag_subject(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     lines = [f"subject_id={subject_id}, section={section_code}, years={years}"]
     async with aiosqlite.connect(DB_PATH) as db:
         for year in years:
-            lectures = await get_lectures_by_year(subject_id, section_code, year, only_approved=False)
+            lectures = await get_lectures_by_year(subject_id, section_code, year)
             lines.append(f"{year}: {len(lectures)} lectures")
             for lec in lectures:
-                types = await get_types_for_lecture(subject_id, section_code, year, lec["lecture_no"], only_approved=False)
+                types = await get_types_for_lecture(
+                    subject_id,
+                    section_code,
+                    year,
+                    lec["lecture_no"],
+                    only_approved=False,
+                )
                 lines.append(f"  lec{lec['lecture_no']}: {list(types.keys())}")
             cur = await db.execute(
                 """

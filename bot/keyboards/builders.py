@@ -250,7 +250,14 @@ def build_years_menu(years: list[int]) -> ReplyKeyboardMarkup:
 
 
 def build_lectures_menu(lectures: list[dict]) -> ReplyKeyboardMarkup:
-    """Build lecture list with Arabic ordinals."""
+    """Build a keyboard listing lectures with Arabic ordinals.
+
+    ``lectures`` should contain dictionaries of ``{"lecture_no": int,
+    "title": str}``.  The resulting labels follow the pattern
+    ``"المحاضرة {ordinal}: {title}"`` where the title part is included only
+    when available.
+    """
+
     labels: list[str] = []
     for item in lectures:
         no = item.get("lecture_no")

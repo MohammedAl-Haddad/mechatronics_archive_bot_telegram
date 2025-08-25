@@ -438,7 +438,7 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=generate_subject_sections_keyboard_dynamic([]),
                 )
 
-            # استخرج أرقام المحاضرات والعناوين المنسقة لعرض زرود مرتبة
+            # استخرج أرقام المحاضرات وعناوينها المنسَّقة لعرضها بترتيب واضح
             lectures: list[dict] = []
             for t in titles:
                 m = re.search(r"(\d+)", t)
@@ -450,10 +450,10 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             markup = build_lectures_menu(lectures)
             lectures_map: dict[str, int] = {}
             for item in lectures:
-                label = f"المحاضرة {arabic_ordinal(int(item['lecture_no']))}"
-                clean = to_display_name(item.get("title", ""))
-                if clean:
-                    label += f": {clean}"
+                label = f"المحاضرة {arabic_ordinal(item['lecture_no'])}"
+                title = to_display_name(item.get("title", ""))
+                if title:
+                    label += f": {title}"
                 lectures_map[label] = item["lecture_no"]
             nav.data["lectures_map"] = lectures_map
             return await update.message.reply_text("اختر محاضرة:", reply_markup=markup)
@@ -663,9 +663,9 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 lectures_map: dict[str, int] = {}
                 for item in lectures:
                     label = f"المحاضرة {arabic_ordinal(item['lecture_no'])}"
-                    clean = to_display_name(item.get('title', ''))
-                    if clean:
-                        label += f": {clean}"
+                    title = to_display_name(item.get("title", ""))
+                    if title:
+                        label += f": {title}"
                     lectures_map[label] = item["lecture_no"]
                 nav.data["lectures_map"] = lectures_map
                 return await update.message.reply_text(

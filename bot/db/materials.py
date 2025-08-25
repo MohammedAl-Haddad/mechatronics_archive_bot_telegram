@@ -490,25 +490,28 @@ async def get_years(
         return [int(r[0]) for r in rows if r[0]]
 
 
-async def get_lectures_by_year(
-    subject_id: int, section: str, year: int, only_approved: bool = True
-) -> list[dict]:
-    """Return lectures within a specific *year* with extracted numbers."""
+async def get_lectures_by_year(subject_id: int, section: str, year: int) -> list[dict]:
+    """Return available lectures for a given *year*.
+
+    Each lecture is returned as a ``{"lecture_no": int, "title": str}`` mapping.
+    The lecture number is extracted from the material title (first group of digits).
+    If no number is found, a sequential value is used instead.  Titles after a
+    colon are trimmed and returned without direction markers.
+    """
+
     async with aiosqlite.connect(DB_PATH) as db:
-        q = (
+        cur = await db.execute(
             """
             SELECT m.title
             FROM materials m
             JOIN years y ON y.id = m.year_id
-            JOIN ingestions i ON i.material_id = m.id
-            WHERE m.subject_id=? AND m.section=? AND y.name=? AND m.category='lecture'
-            """
+            WHERE m.subject_id=? AND m.section=? AND y.name=?
+              AND m.category='lecture'
+              AND (m.url IS NOT NULL OR m.tg_storage_msg_id IS NOT NULL)
+            ORDER BY m.title
+            """,
+            (subject_id, section, str(year)),
         )
-        params: list = [subject_id, section, str(year)]
-        if only_approved:
-            q += " AND i.status='approved'"
-        q += " ORDER BY m.title"
-        cur = await db.execute(q, params)
         titles = [r[0] for r in await cur.fetchall()]
 
     lectures: list[dict] = []
@@ -517,6 +520,7 @@ async def get_lectures_by_year(
         no = int(m.group(1)) if m else len(lectures) + 1
         title = t.split(":", 1)[1].strip() if ":" in t else ""
         lectures.append({"lecture_no": no, "title": title})
+
     return lectures
 
 
