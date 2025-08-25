@@ -22,23 +22,12 @@ from bot.db import (
 )
 from bot.utils.conv import conv_push, conv_cleanup
 from bot.utils.telegram import send_ephemeral
+from bot.utils.normalize import normalize_section, display_section
 
 logger = logging.getLogger("bot.binding")
 
 START, AWAIT_INPUT, ASK_THEORY_ONLY, CONFIRM = range(4)
 
-SECTION_ALIASES = {
-    "نظري": "theory",
-    "مناقشة": "discussion",
-    "مناقشه": "discussion",
-    "عملي": "lab",
-}
-
-SECTION_LABELS = {
-    "theory": "نظري",
-    "discussion": "مناقشة",
-    "lab": "عملي",
-}
 
 FULL_RE = re.compile(r"^(?P<subject>[^-]+?)\s*-\s*(?P<section>نظري|عملي|مناقشة)\s*$")
 NAME_RE = re.compile(r"^(?P<subject>.+?)\s*$")
@@ -62,7 +51,10 @@ async def insert_sub_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     existing = await get_binding(chat.id, thread_id)
     if existing:
-        msg = f"هذا الـTopic مربوط حاليًا بـ: {existing['subject_name']} — {SECTION_LABELS.get(existing['section'], existing['section'])}."
+        msg = (
+            f"هذا الـTopic مربوط حاليًا بـ: {existing['subject_name']} —"
+            f" {display_section(existing['section'])}."
+        )
         buttons = [[
             InlineKeyboardButton("تعديل الربط", callback_data="sub_manual"),
             InlineKeyboardButton("إلغاء", callback_data="sub_cancel"),
@@ -106,12 +98,14 @@ async def insert_sub_received(update: Update, context: ContextTypes.DEFAULT_TYPE
     if m_full:
         subject = m_full.group("subject").strip()
         sect_label = m_full.group("section")
-        section = SECTION_ALIASES[sect_label]
-        info.update({
-            "subject_name": subject,
-            "section": section,
-            "theory_only": False,
-        })
+        section = normalize_section(sect_label) or "theory"
+        info.update(
+            {
+                "subject_name": subject,
+                "section": section,
+                "theory_only": False,
+            }
+        )
         theory_label = "لا"
         buttons = [[
             InlineKeyboardButton("تأكيد", callback_data="sub_confirm"),
@@ -159,7 +153,7 @@ async def insert_sub_theory_choice(update: Update, context: ContextTypes.DEFAULT
         InlineKeyboardButton("إلغاء", callback_data="sub_cancel"),
     ]]
     await query.edit_message_text(
-        f"سيتم ربط هذا الـTopic بـ:\nالمادة: {subject}\nالقسم: نظري\nنظري فقط: {theory_label}",
+        f"سيتم ربط هذا الـTopic بـ:\nالمادة: {subject}\nالقسم: {display_section('theory')}\nنظري فقط: {theory_label}",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
     return CONFIRM

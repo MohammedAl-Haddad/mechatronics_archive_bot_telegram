@@ -18,6 +18,7 @@ from ..db import (
 from ..db.materials import insert_material, find_exact
 from ..parser.hashtags import parse_hashtags
 from ..utils.telegram import send_ephemeral, get_file_unique_id_from_message
+from ..utils.normalize import display_section, normalize_section
 
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             )
             return
         subject_id = binding["subject_id"]
-        section = binding["section"]
+        section = normalize_section(binding["section"])
         subject_name = binding["subject_name"]
     else:
         subject_id = section = subject_name = None
@@ -177,7 +178,7 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     )
 
     summary = (
-        f"المادة: {subject_name}\nالقسم: {section}\nالسنة: {year or '---'}\nالنوع: {category}\nالعنوان: {title}"
+        f"المادة: {subject_name}\nالقسم: {display_section(section)}\nالسنة: {year or '---'}\nالنوع: {category}\nالعنوان: {title}"
     )
     buttons = [
         [
@@ -228,7 +229,7 @@ async def handle_duplicate_decision(
     )
     summary = (
         "طلب استبدال ملف مرفوع سابقًا\n"
-        f"المادة: {data['subject_name']}\nالقسم: {data['section']}\n"
+        f"المادة: {data['subject_name']}\nالقسم: {display_section(data['section'])}\n"
         f"السنة: {data['year'] or '---'}\nالنوع: {data['category']}\nالعنوان: {data['title']}"
     )
     buttons = [

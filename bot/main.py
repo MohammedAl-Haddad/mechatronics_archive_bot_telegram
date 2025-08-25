@@ -30,6 +30,7 @@ from .handlers import (
     moderation_handler,
     me_handler,
     version_handler,
+    diag_subject_handler,
 )
 from .jobs import purge_temp_archives
 from datetime import time
@@ -91,6 +92,7 @@ def main():
             filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, echo_handler
         )
     )
+    app.add_handler(diag_subject_handler)
 
     app.job_queue.run_daily(purge_temp_archives, time=time(hour=0, minute=0))
 

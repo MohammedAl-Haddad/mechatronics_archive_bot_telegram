@@ -441,56 +441,115 @@ async def list_categories_for_lecture(
 # Simplified access helpers for navigation
 # -----------------------------------------------------------------------------
 
-async def get_years(subject_id: int, section: str) -> list[int]:
+async def get_years(
+    subject_id: int, section: str, only_approved: bool = True
+) -> list[int]:
     """Return available Hijri years for *subject* and *section*."""
-    rows = await get_years_for_subject_section(subject_id, section)
-    return [int(name) for _id, name in rows]
+    async with aiosqlite.connect(DB_PATH) as db:
+        q = (
+            """
+            SELECT DISTINCT y.name
+            FROM materials m
+            JOIN years y ON y.id = m.year_id
+            JOIN ingestions i ON i.material_id = m.id
+            WHERE m.subject_id=? AND m.section=? AND m.year_id IS NOT NULL
+            """
+        )
+        params: list = [subject_id, section]
+        if only_approved:
+            q += " AND i.status='approved'"
+        q += " ORDER BY y.name"
+        cur = await db.execute(q, params)
+        rows = await cur.fetchall()
+        return [int(r[0]) for r in rows]
 
 
-async def get_lectures_by_year(subject_id: int, section: str, year_id: int) -> list[dict]:
-    """Return lectures within a specific *year_id* with extracted numbers."""
-    titles = await list_lecture_titles_by_year(subject_id, section, year_id)
+async def get_lectures_by_year(
+    subject_id: int, section: str, year: int, only_approved: bool = True
+) -> list[dict]:
+    """Return lectures within a specific *year* with extracted numbers."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        q = (
+            """
+            SELECT m.title
+            FROM materials m
+            JOIN years y ON y.id = m.year_id
+            JOIN ingestions i ON i.material_id = m.id
+            WHERE m.subject_id=? AND m.section=? AND y.name=? AND m.category='lecture'
+            """
+        )
+        params: list = [subject_id, section, str(year)]
+        if only_approved:
+            q += " AND i.status='approved'"
+        q += " ORDER BY m.title"
+        cur = await db.execute(q, params)
+        titles = [r[0] for r in await cur.fetchall()]
+
     lectures: list[dict] = []
     for t in titles:
         m = re.search(r"(\d+)", t)
         no = int(m.group(1)) if m else len(lectures) + 1
         title = t.split(":", 1)[1].strip() if ":" in t else ""
-        lectures.append({"lecture_no": no, "title": title, "raw": t})
+        lectures.append({"lecture_no": no, "title": title})
     return lectures
 
 
 async def get_types_for_lecture(
     subject_id: int,
     section: str,
-    year_id: int,
-    lecture_title: str,
+    year: int,
+    lecture_no: int,
+    only_approved: bool = True,
 ) -> dict[str, tuple[int, str | None, int | None, int | None]]:
     """Return available types for a lecture mapped to material records."""
-    cats = await list_categories_for_lecture(subject_id, section, lecture_title, year_id=year_id)
-    result: dict[str, tuple[int, str | None, int | None, int | None]] = {}
-    for cat in cats:
-        mats = await get_materials_by_category(
-            subject_id, section, cat, year_id=year_id, title=lecture_title
+    async with aiosqlite.connect(DB_PATH) as db:
+        q = (
+            """
+            SELECT m.category, m.id, m.url, m.tg_storage_chat_id, m.tg_storage_msg_id
+            FROM materials m
+            JOIN years y ON y.id = m.year_id
+            JOIN ingestions i ON i.material_id = m.id
+            WHERE m.subject_id=? AND m.section=? AND y.name=? AND m.title LIKE ?
+            """
         )
-        if mats:
-            _id, title, url, chat_id, msg_id = mats[0]
-            result[cat] = (_id, url, chat_id, msg_id)
+        params: list = [subject_id, section, str(year), f"%{lecture_no}%"]
+        if only_approved:
+            q += " AND i.status='approved'"
+        cur = await db.execute(q, params)
+        rows = await cur.fetchall()
+
+    result: dict[str, tuple[int, str | None, int | None, int | None]] = {}
+    for cat, _id, url, chat_id, msg_id in rows:
+        result[cat] = (_id, url, chat_id, msg_id)
     return result
 
 
-async def get_year_specials(subject_id: int, section: str, year_id: int) -> dict:
+async def get_year_specials(
+    subject_id: int, section: str, year: int, only_approved: bool = True
+) -> dict:
     """Return flags for booklet and exam models in a year."""
-    booklet = bool(
-        await get_materials_by_category(subject_id, section, "booklet", year_id=year_id)
-    )
-    exam_mid = bool(
-        await get_materials_by_category(subject_id, section, "exam_mid", year_id=year_id)
-    )
-    exam_final = bool(
-        await get_materials_by_category(subject_id, section, "exam_final", year_id=year_id)
-    )
+    async with aiosqlite.connect(DB_PATH) as db:
+        q = (
+            """
+            SELECT
+                SUM(CASE WHEN m.category='booklet' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN m.category='exam_mid' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN m.category='exam_final' THEN 1 ELSE 0 END)
+            FROM materials m
+            JOIN years y ON y.id = m.year_id
+            JOIN ingestions i ON i.material_id = m.id
+            WHERE m.subject_id=? AND m.section=? AND y.name=?
+            """
+        )
+        params: list = [subject_id, section, str(year)]
+        if only_approved:
+            q += " AND i.status='approved'"
+        cur = await db.execute(q, params)
+        row = await cur.fetchone()
+
+    booklet, exam_mid, exam_final = row if row else (0, 0, 0)
     return {
-        "has_booklet": booklet,
-        "has_exam_mid": exam_mid,
-        "has_exam_final": exam_final,
+        "has_booklet": bool(booklet),
+        "has_exam_mid": bool(exam_mid),
+        "has_exam_final": bool(exam_final),
     }
