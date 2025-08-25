@@ -550,6 +550,40 @@ async def get_lectures_by_year(subject_id: int, section: str, year: int) -> list
     return lectures
 
 
+async def get_lecturer_lectures(
+    subject_id: int, section: str, lecturer_id: int
+) -> list[dict]:
+    """Return available lectures for a given *lecturer*.
+
+    Each lecture is returned as a ``{"lecture_no": int, "title": str}`` mapping.
+    The lecture number is extracted from the material title (first group of digits).
+    If no number is found, a sequential value is used instead.  Titles after a
+    colon are trimmed and returned without direction markers.
+    """
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            """
+            SELECT title
+            FROM materials
+            WHERE subject_id=? AND section=? AND category='lecture' AND lecturer_id=?
+              AND (url IS NOT NULL OR tg_storage_msg_id IS NOT NULL)
+            ORDER BY title
+            """,
+            (subject_id, section, lecturer_id),
+        )
+        titles = [r[0] for r in await cur.fetchall()]
+
+    lectures: list[dict] = []
+    for t in titles:
+        m = re.search(r"(\d+)", t)
+        no = int(m.group(1)) if m else len(lectures) + 1
+        title = t.split(":", 1)[1].strip() if ":" in t else ""
+        lectures.append({"lecture_no": no, "title": title})
+
+    return lectures
+
+
 async def get_types_for_lecture(
     subject_id: int,
     section: str,

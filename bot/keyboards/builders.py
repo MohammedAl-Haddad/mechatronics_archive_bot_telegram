@@ -266,6 +266,20 @@ def build_year_root_menu(has_booklet: bool, has_exams: bool) -> ReplyKeyboardMar
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
+def build_lecturer_root_menu(
+    lecturer_display: str, has_booklet: bool, has_exams: bool
+) -> ReplyKeyboardMarkup:
+    """Build root menu for a selected lecturer with dynamic label."""
+    row: list[str] = [f"محاضرات الدكتور {to_display_name(lecturer_display)}"]
+    if has_booklet:
+        row.append("الملزمة")
+    if has_exams:
+        row.append("النماذج")
+
+    keyboard = [row, [BACK]]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
 def build_years_menu(years: list[int]) -> ReplyKeyboardMarkup:
     """Build a simple menu for available years."""
     labels = [str(y) for y in years if y]
@@ -371,11 +385,11 @@ __all__ = [
     "generate_years_keyboard",
     "generate_lecturers_keyboard",
     "generate_lecture_titles_keyboard",
-    "generate_lecturer_filter_keyboard",
     "generate_year_category_menu_keyboard",
     "generate_lecture_category_menu_keyboard",
     "build_subject_section_menu",
     "build_year_root_menu",
+    "build_lecturer_root_menu",
     "build_years_menu",
     "build_lectures_menu",
     "build_lecturers_menu",

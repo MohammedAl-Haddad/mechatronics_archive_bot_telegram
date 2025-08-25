@@ -11,12 +11,12 @@ from bot.db import (
     term_feature_flags,
     get_available_sections_for_subject,
     get_lecturers,
-    has_lecture_category,
     get_years_for_subject_section_lecturer,
     list_lecture_titles,
     list_lecture_titles_by_year,
     list_lecture_titles_by_lecturer,
     list_lecture_titles_by_lecturer_year,
+    get_lecturer_lectures,
     get_subject_id_by_name,
     get_materials_by_category,
     get_lecture_materials,
@@ -44,8 +44,6 @@ from ..keyboards.constants import (
     FILTER_BY_YEAR,
     FILTER_BY_LECTURER,
     LIST_LECTURES,
-    CHOOSE_YEAR_FOR_LECTURER,
-    LIST_LECTURES_FOR_LECTURER,
     YEAR_MENU_LECTURES,
     LABEL_TO_CATEGORY,
 )
@@ -56,7 +54,6 @@ from ..keyboards.builders import (
     generate_subjects_keyboard,
     generate_term_menu_keyboard_dynamic,
     generate_subject_sections_keyboard_dynamic,
-    generate_lecturer_filter_keyboard,
     build_subject_section_menu,
     build_lecturers_menu,
     generate_lecture_titles_keyboard,
@@ -66,6 +63,7 @@ from ..keyboards.builders import (
     build_types_menu,
     build_exams_menu,
     build_year_root_menu,
+    build_lecturer_root_menu,
 )
 
 from ..utils.formatting import arabic_ordinal, to_display_name
@@ -169,11 +167,24 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         section_code = nav.data.get("section")
         lecturer_label = stack[-1][1]
         lecturer_id = nav.data.get("lecturer_id")
-        years = await get_years_for_subject_section_lecturer(subject_id, section_code, lecturer_id)
-        lectures_exist = await has_lecture_category(subject_id, section_code) or False
+        has_booklet = bool(
+            await get_materials_by_category(
+                subject_id, section_code, "booklet", lecturer_id=lecturer_id
+            )
+        )
+        has_exams = bool(
+            await get_materials_by_category(
+                subject_id, section_code, "exam_mid", lecturer_id=lecturer_id
+            )
+            or await get_materials_by_category(
+                subject_id, section_code, "exam_final", lecturer_id=lecturer_id
+            )
+        )
         return await update.message.reply_text(
-            f"المحاضر: {lecturer_label}\nاختر خيارًا:",
-            reply_markup=generate_lecturer_filter_keyboard(bool(years), lectures_exist),
+            "اختر:",
+            reply_markup=build_lecturer_root_menu(
+                lecturer_label, has_booklet, has_exams
+            ),
         )
 
     if top_type == "year_list":
@@ -556,79 +567,31 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if text in lect_map:
             lecturer_id = lect_map[text]
             nav.set_lecturer(text, lecturer_id)
-            years = await get_years_for_subject_section_lecturer(subject_id, section_code, lecturer_id)
-            lectures_exist = await list_lecture_titles_by_lecturer(subject_id, section_code, lecturer_id)
-            return await update.message.reply_text(
-                f"المحاضر: {text}\nاختر خيارًا:",
-                reply_markup=generate_lecturer_filter_keyboard(bool(years), bool(lectures_exist)),
-            )
+            return await render_state(update, context)
 
-    # 8.2.1) داخل قائمة المحاضر: اختر السنة/عرض كل محاضرات هذا المحاضر
-    if text in {CHOOSE_YEAR_FOR_LECTURER, LIST_LECTURES_FOR_LECTURER}:
+    # 8.2.1) عرض محاضرات المحاضر المختار
+    lecturer_label = next((lbl for t, lbl in nav.stack if t == "lecturer"), "")
+    if lecturer_label and text == f"محاضرات الدكتور {lecturer_label}":
         subject_id = nav.data.get("subject_id")
         section_code = nav.data.get("section")
         lecturer_id = nav.data.get("lecturer_id")
-        lecturer_label = next((lbl for t, lbl in nav.stack if t == "lecturer"), "")
-
-        if not (subject_id and section_code and lecturer_id):
+        lectures = await get_lecturer_lectures(subject_id, section_code, lecturer_id)
+        if not lectures:
             return await update.message.reply_text(
-                "ابدأ باختيار المادة → القسم → المحاضر.", reply_markup=main_menu
+                "لا توجد محاضرات لهذا المحاضر.",
+                reply_markup=build_lecturer_root_menu(lecturer_label, False, False),
             )
-
-        if text == CHOOSE_YEAR_FOR_LECTURER:
-            years_pairs = await get_years_for_subject_section_lecturer(
-                subject_id, section_code, lecturer_id
-            )
-            if not years_pairs:
-                years_exist = False
-                lectures_exist = await list_lecture_titles_by_lecturer(
-                    subject_id, section_code, lecturer_id
-                )
-                return await update.message.reply_text(
-                    "لا توجد سنوات مرتبطة بمحاضرات هذا المحاضر.",
-                    reply_markup=generate_lecturer_filter_keyboard(
-                        years_exist, bool(lectures_exist)
-                    ),
-                )
-            years = [int(name) for _id, name in years_pairs]
-            nav.push_view("year_list")
-            return await update.message.reply_text(
-                f"المحاضر: {lecturer_label}\nاختر السنة:",
-                reply_markup=build_years_menu(years),
-            )
-
-        if text == LIST_LECTURES_FOR_LECTURER:
-            titles = await list_lecture_titles_by_lecturer(
-                subject_id, section_code, lecturer_id
-            )
-            if not titles:
-                years = await get_years_for_subject_section_lecturer(subject_id, section_code, lecturer_id)
-                return await update.message.reply_text(
-                    "لا توجد محاضرات لهذا المحاضر.",
-                    reply_markup=generate_lecturer_filter_keyboard(bool(years), False),
-                )
-
-            lectures: list[dict] = []
-            for t in titles:
-                m = re.search(r"(\d+)", t)
-                no = int(m.group(1)) if m else len(lectures) + 1
-                title = t.split(":", 1)[1].strip() if ":" in t else ""
-                lectures.append({"lecture_no": no, "title": title})
-
-            nav.push_view("lecture_list")
-            markup = build_lectures_menu(lectures)
-            lectures_map: dict[str, int] = {}
-            for item in lectures:
-                label = f"المحاضرة {arabic_ordinal(int(item['lecture_no']))}"
-                clean = to_display_name(item.get("title", ""))
-                if clean:
-                    label += f": {clean}"
-                lectures_map[label] = item["lecture_no"]
-            nav.data["lectures_map"] = lectures_map
-            return await update.message.reply_text(
-                f"محاضرات الدكتور {lecturer_label}:",
-                reply_markup=markup,
-            )
+        nav.push_view("lecture_list")
+        markup = build_lectures_menu(lectures)
+        lectures_map: dict[str, int] = {}
+        for item in lectures:
+            label = f"المحاضرة {arabic_ordinal(int(item['lecture_no']))}"
+            clean = to_display_name(item.get("title", ""))
+            if clean:
+                label += f": {clean}"
+            lectures_map[label] = item["lecture_no"]
+        nav.data["lectures_map"] = lectures_map
+        return await update.message.reply_text("اختر محاضرة:", reply_markup=markup)
 
 
     # 8.2.x) داخل قائمة تصنيفات السنة أو قوائمها الفرعية
