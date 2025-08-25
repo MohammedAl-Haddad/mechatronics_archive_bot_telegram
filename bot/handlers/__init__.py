@@ -9,6 +9,7 @@ from .admins import admins_conv
 from .approvals import approvals_handler, approval_callback
 from .moderation import moderation_handler
 from .misc import me_handler, version_handler
+from .diag import diag_subject_handler
 
 __all__ = [
     "start",
@@ -25,4 +26,5 @@ __all__ = [
     "moderation_handler",
     "me_handler",
     "version_handler",
+    "diag_subject_handler",
 ]

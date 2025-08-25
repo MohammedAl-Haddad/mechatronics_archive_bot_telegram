@@ -35,13 +35,14 @@ async def attach_material(
         await db.commit()
 
 
-async def list_pending_ingestions() -> list[tuple[int, int, int, str]]:
-    """Return pending ingestions with source identifiers and action."""
+async def list_pending_ingestions() -> list[tuple[int, int, str, int, int, str]]:
+    """Return pending ingestions with subject and section details."""
 
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             """
-            SELECT i.id, m.source_chat_id, i.tg_message_id, i.action
+            SELECT i.id, m.subject_id, m.section, m.source_chat_id,
+                   i.tg_message_id, i.action
             FROM ingestions i
             JOIN materials m ON m.id = i.material_id
             WHERE i.status='pending'

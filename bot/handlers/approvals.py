@@ -16,6 +16,7 @@ from ..db.materials import update_material_storage
 from ..utils.telegram import (
     get_file_unique_id_from_message as _get_file_unique_id_from_message,  # noqa: F401
 )
+from ..utils.normalize import display_section
 
 
 logger = logging.getLogger("bot.approvals")
@@ -30,12 +31,15 @@ async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text("لا توجد رسائل معلقة.")
         return
     await update.message.reply_text("الرسائل المعلقة:")
-    for ingestion_id, chat_id, msg_id, action_type in pending:
+    for ingestion_id, subject_id, section_code, chat_id, msg_id, action_type in pending:
         approve_label = "Approve استبدال" if action_type == "replace" else "Approve"
         buttons = [[
             InlineKeyboardButton(approve_label, callback_data=f"appr:{ingestion_id}"),
             InlineKeyboardButton("Reject", callback_data=f"rej:{ingestion_id}"),
         ]]
+        await update.message.reply_text(
+            f"#{ingestion_id} subject={subject_id} section={display_section(section_code)}"
+        )
         await context.bot.copy_message(
             chat_id=update.effective_chat.id,
             from_chat_id=chat_id,
