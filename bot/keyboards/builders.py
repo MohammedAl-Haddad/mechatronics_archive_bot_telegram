@@ -276,9 +276,18 @@ def build_lectures_menu(lectures: list[dict]) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
-def build_types_menu(types: dict[str, object]) -> ReplyKeyboardMarkup:
-    """Build menu for available content types."""
-    labels = [CATEGORY_TO_LABEL.get(t, to_display_name(t)) for t in types.keys()]
+def build_types_menu(types: dict[str, dict]) -> ReplyKeyboardMarkup:
+    """Build menu for available content types.
+
+    ``types`` should map content category names to material rows.  Categories with
+    falsy rows are ignored.  The menu always includes a back button at the end.
+    """
+
+    labels = [
+        CATEGORY_TO_LABEL.get(cat, to_display_name(cat))
+        for cat, row in types.items()
+        if row
+    ]
     labels = [lbl for lbl in labels if lbl]
     keyboard = _rows(labels, cols=2)
     if not keyboard:
