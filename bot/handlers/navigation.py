@@ -1,4 +1,6 @@
 import logging
+import re
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
@@ -412,9 +414,30 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if text == LIST_LECTURES:
             titles = await list_lecture_titles(subject_id, section_code)
             if not titles:
-                return await update.message.reply_text("لا توجد محاضرات متاحة.", reply_markup=generate_subject_sections_keyboard_dynamic([]))
+                return await update.message.reply_text(
+                    "لا توجد محاضرات متاحة.",
+                    reply_markup=generate_subject_sections_keyboard_dynamic([]),
+                )
+
+            # استخرج أرقام المحاضرات والعناوين المنسقة لعرض زرود مرتبة
+            lectures: list[dict] = []
+            for t in titles:
+                m = re.search(r"(\d+)", t)
+                no = int(m.group(1)) if m else len(lectures) + 1
+                title = t.split(":", 1)[1].strip() if ":" in t else ""
+                lectures.append({"lecture_no": no, "title": title})
+
             nav.push_view("lecture_list")
-            return await update.message.reply_text("اختر محاضرة:", reply_markup=generate_lecture_titles_keyboard(titles))
+            markup = build_lectures_menu(lectures)
+            lectures_map: dict[str, int] = {}
+            for item in lectures:
+                label = f"المحاضرة {arabic_ordinal(int(item['lecture_no']))}"
+                clean = to_display_name(item.get("title", ""))
+                if clean:
+                    label += f": {clean}"
+                lectures_map[label] = item["lecture_no"]
+            nav.data["lectures_map"] = lectures_map
+            return await update.message.reply_text("اختر محاضرة:", reply_markup=markup)
 
     # 8.2) اختيار سنة/محاضر
     subject_id = nav.data.get("subject_id")
@@ -499,10 +522,27 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "لا توجد محاضرات لهذا المحاضر.",
                     reply_markup=generate_lecturer_filter_keyboard(bool(years), False),
                 )
+
+            lectures: list[dict] = []
+            for t in titles:
+                m = re.search(r"(\d+)", t)
+                no = int(m.group(1)) if m else len(lectures) + 1
+                title = t.split(":", 1)[1].strip() if ":" in t else ""
+                lectures.append({"lecture_no": no, "title": title})
+
             nav.push_view("lecture_list")
+            markup = build_lectures_menu(lectures)
+            lectures_map: dict[str, int] = {}
+            for item in lectures:
+                label = f"المحاضرة {arabic_ordinal(int(item['lecture_no']))}"
+                clean = to_display_name(item.get("title", ""))
+                if clean:
+                    label += f": {clean}"
+                lectures_map[label] = item["lecture_no"]
+            nav.data["lectures_map"] = lectures_map
             return await update.message.reply_text(
                 f"محاضرات الدكتور {lecturer_label}:",
-                reply_markup=generate_lecture_titles_keyboard(titles),
+                reply_markup=markup,
             )
 
 
@@ -536,11 +576,12 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 nav.push_view("lecture_list")
                 markup = build_lectures_menu(lectures)
-                lectures_map = { }
+                lectures_map: dict[str, int] = {}
                 for item in lectures:
                     label = f"المحاضرة {arabic_ordinal(item['lecture_no'])}"
-                    if item.get('title'):
-                        label += f": {item['title']}"
+                    clean = to_display_name(item.get('title', ''))
+                    if clean:
+                        label += f": {clean}"
                     lectures_map[label] = item["lecture_no"]
                 nav.data["lectures_map"] = lectures_map
                 return await update.message.reply_text(

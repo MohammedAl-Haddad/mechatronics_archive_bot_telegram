@@ -155,7 +155,9 @@ def generate_lecturers_keyboard(lecturers: list[tuple[int, str]]) -> ReplyKeyboa
 
 def generate_lecture_titles_keyboard(titles: list[str]) -> ReplyKeyboardMarkup:
     """Display lecture titles."""
-    keyboard = _rows(titles, cols=2)
+    # Clean up titles to avoid underscores or hidden characters in buttons
+    names = [to_display_name(t) for t in titles]
+    keyboard = _rows(names, cols=2)
     keyboard.append([BACK, BACK_TO_SUBJECTS])
     keyboard.append([BACK_TO_LEVELS])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -223,7 +225,8 @@ def build_lectures_menu(lectures: list[dict]) -> ReplyKeyboardMarkup:
         no = item.get("lecture_no")
         if not no:
             continue
-        title = item.get("title", "")
+        # Sanitize the title to remove underscores or direction markers
+        title = to_display_name(item.get("title", ""))
         label = f"المحاضرة {arabic_ordinal(int(no))}"
         if title:
             label += f": {title}"
