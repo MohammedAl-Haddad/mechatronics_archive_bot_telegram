@@ -36,6 +36,7 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     year = info.year
     category = info.content_type
     title = info.title or ""
+    lecture_no = info.lecture_no
     lecturer_name = info.lecturer
 
     user = update.effective_user
@@ -159,6 +160,29 @@ async def ingestion_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         source_message_id=message.message_id,
         created_by_admin_id=admin_id,
     )
+
+    if category in {"board_images", "slides"} and lecture_no:
+        lecture_existing = await find_exact(
+            subject_id,
+            section,
+            "lecture",
+            title,
+            year_id=year_id,
+            lecturer_id=lecturer_id,
+        )
+        if lecture_existing is None:
+            auto_lecture_id = await insert_material(
+                subject_id,
+                section,
+                "lecture",
+                title,
+                year_id=year_id,
+                lecturer_id=lecturer_id,
+                created_by_admin_id=admin_id,
+            )
+            logger.info(
+                "Auto-created lecture record %s for lecture_no=%s", auto_lecture_id, lecture_no
+            )
 
     ingestion_id = await insert_ingestion(
         message.message_id, admin_id, file_unique_id=file_unique_id
