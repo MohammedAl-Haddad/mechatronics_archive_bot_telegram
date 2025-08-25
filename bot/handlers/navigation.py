@@ -852,8 +852,9 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             material = await get_material(
                 subject_id, section_code, year, lecture_no, category, lecturer_id
             )
-            if material and material[2] and material[3]:
-                chat_id, msg_id = material[2], material[3]
+            if material and material.get("tg_storage_chat_id") and material.get("tg_storage_msg_id"):
+                chat_id = material["tg_storage_chat_id"]
+                msg_id = material["tg_storage_msg_id"]
                 link = None
                 if chat_id == ARCHIVE_CHANNEL_ID:
                     link = build_archive_link(chat_id, msg_id)

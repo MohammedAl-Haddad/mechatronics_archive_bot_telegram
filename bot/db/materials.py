@@ -574,8 +574,13 @@ async def get_material(
     content_type: str,
     lecturer_id: int | None = None,
     only_approved: bool = True,
-) -> tuple[int, str | None, int | None, int | None] | None:
-    """Return a material row for a specific lecture content type."""
+) -> dict | None:
+    """Return a material row for a specific lecture content type.
+
+    The returned mapping includes ``id``, ``url``, ``tg_storage_chat_id`` and
+    ``tg_storage_msg_id`` keys. ``None`` is returned if no matching row is
+    found.
+    """
     async with aiosqlite.connect(DB_PATH) as db:
         q = (
             """
@@ -601,7 +606,15 @@ async def get_material(
         q += " ORDER BY m.id LIMIT 1"
         cur = await db.execute(q, tuple(params))
         row = await cur.fetchone()
-    return (row[0], row[1], row[2], row[3]) if row else None
+
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "url": row[1],
+        "tg_storage_chat_id": row[2],
+        "tg_storage_msg_id": row[3],
+    }
 
 
 async def get_year_specials(subject_id: int, section: str, year: int) -> dict:
