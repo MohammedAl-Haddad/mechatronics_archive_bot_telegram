@@ -63,6 +63,7 @@ from ..keyboards.builders import (
     build_lectures_menu,
     build_types_menu,
     build_exam_menu,
+    build_year_root_menu,
 )
 
 from ..utils.formatting import arabic_ordinal, to_display_name
@@ -202,14 +203,27 @@ async def render_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not year_id:
             return await render_state(update, context)
         if lecturer_id:
-            lectures_exist = bool(await list_lecture_titles_by_lecturer_year(subject_id, section_code, lecturer_id, year_id))
-            cats = await list_categories_for_subject_section_year(subject_id, section_code, year_id, lecturer_id=lecturer_id)
-        else:
-            lectures_exist = bool(await list_lecture_titles_by_year(subject_id, section_code, year_id))
-            cats = await list_categories_for_subject_section_year(subject_id, section_code, year_id)
+            lectures_exist = bool(
+                await list_lecture_titles_by_lecturer_year(
+                    subject_id, section_code, lecturer_id, year_id
+                )
+            )
+            cats = await list_categories_for_subject_section_year(
+                subject_id, section_code, year_id, lecturer_id=lecturer_id
+            )
+            return await update.message.reply_text(
+                "اختر نوع المحتوى:",
+                reply_markup=generate_year_category_menu_keyboard(cats, lectures_exist),
+            )
+
+        specials = await get_year_specials(subject_id, section_code, year_id)
+        nav.data["year_specials"] = specials
+        has_exams = specials.get("has_exam_mid") or specials.get("has_exam_final")
         return await update.message.reply_text(
             "اختر نوع المحتوى:",
-            reply_markup=generate_year_category_menu_keyboard(cats, lectures_exist),
+            reply_markup=build_year_root_menu(
+                specials.get("has_booklet"), has_exams
+            ),
         )
 
     if top_type == "lecture_category_menu":
@@ -471,18 +485,15 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not lecturer_id and text in years_map:
             year = years_map[text]
             nav.set_year(text, year)
-            lectures = await get_lectures_by_year(subject_id, section_code, year)
-            lectures_exist = bool(lectures)
             specials = await get_year_specials(subject_id, section_code, year)
-            cats: list[str] = []
-            if specials.get("has_booklet"):
-                cats.append("booklet")
-            if specials.get("has_exam_mid") or specials.get("has_exam_final"):
-                cats.append("exam")
+            nav.data["year_specials"] = specials
+            has_exams = specials.get("has_exam_mid") or specials.get("has_exam_final")
             nav.push_view("year_category_menu")
             return await update.message.reply_text(
                 f"السنة: {text}\nاختر نوع المحتوى:",
-                reply_markup=generate_year_category_menu_keyboard(cats, lectures_exist),
+                reply_markup=build_year_root_menu(
+                    specials.get("has_booklet"), has_exams
+                ),
             )
 
         # اختيار محاضر بالاسم
@@ -565,7 +576,61 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
 
-    # 8.2.x) داخل قائمة تصنيفات السنة (نفذ فقط إن كانت الشاشة الحالية هي year_category_menu)
+    # 8.2.x) داخل قائمة تصنيفات السنة أو قوائمها الفرعية
+    if text in {"الملزمة", "النماذج"}:
+        stack = nav.stack
+        current = stack[-1][0] if stack else None
+        lecturer_id = nav.data.get("lecturer_id")
+        if current == "year_category_menu" and not lecturer_id:
+            subject_id = nav.data.get("subject_id")
+            section_code = nav.data.get("section")
+            year_id = nav.data.get("year_id")
+            specials = nav.data.get("year_specials") or await get_year_specials(subject_id, section_code, year_id)
+
+            if text == "الملزمة":
+                mats = await get_materials_by_category(
+                    subject_id, section_code, "booklet", year_id=year_id
+                )
+                if not mats:
+                    await update.message.reply_text("لا توجد ملزمة لهذه السنة.")
+                else:
+                    for _id, title, url, chat_id, msg_id in mats:
+                        if msg_id and chat_id:
+                            link = None
+                            if chat_id == ARCHIVE_CHANNEL_ID:
+                                link = build_archive_link(chat_id, msg_id)
+                            markup = (
+                                InlineKeyboardMarkup(
+                                    [[InlineKeyboardButton("🔗 فتح في الأرشيف", url=link)]]
+                                )
+                                if link
+                                else None
+                            )
+                            await context.bot.copy_message(
+                                chat_id=update.effective_chat.id,
+                                from_chat_id=chat_id,
+                                message_id=msg_id,
+                                reply_markup=markup,
+                            )
+                        elif url:
+                            await update.message.reply_text(f"📄 {title}\n{url}")
+                has_exams = specials.get("has_exam_mid") or specials.get("has_exam_final")
+                return await update.message.reply_text(
+                    "اختر نوع المحتوى:",
+                    reply_markup=build_year_root_menu(
+                        specials.get("has_booklet"), has_exams
+                    ),
+                )
+
+            if text == "النماذج":
+                nav.push_view("exam_menu")
+                return await update.message.reply_text(
+                    "اختر النموذج:",
+                    reply_markup=build_exam_menu(
+                        specials.get("has_exam_mid"), specials.get("has_exam_final")
+                    ),
+                )
+
     if text == YEAR_MENU_LECTURES or text in LABEL_TO_CATEGORY:
         stack = nav.stack
         current = stack[-1][0] if stack else None
@@ -693,6 +758,49 @@ async def echo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     titles_exist = bool(await list_lecture_titles_by_year(subject_id, section_code, year_id))
                 cats = await list_categories_for_subject_section_year(subject_id, section_code, year_id, lecturer_id=lecturer_id)
                 return await update.message.reply_text("اختر نوع محتوى آخر:", reply_markup=generate_year_category_menu_keyboard(cats, titles_exist))
+
+    if text in {"النصفي", "النهائي"}:
+        stack = nav.stack
+        current = stack[-1][0] if stack else None
+        if current == "exam_menu":
+            subject_id = nav.data.get("subject_id")
+            section_code = nav.data.get("section")
+            year_id = nav.data.get("year_id")
+            category = "exam_mid" if text == "النصفي" else "exam_final"
+            mats = await get_materials_by_category(
+                subject_id, section_code, category, year_id=year_id
+            )
+            if not mats:
+                await update.message.reply_text("لا توجد ملفات لهذا النموذج.")
+            else:
+                for _id, title, url, chat_id, msg_id in mats:
+                    if msg_id and chat_id:
+                        link = None
+                        if chat_id == ARCHIVE_CHANNEL_ID:
+                            link = build_archive_link(chat_id, msg_id)
+                        markup = (
+                            InlineKeyboardMarkup(
+                                [[InlineKeyboardButton("🔗 فتح في الأرشيف", url=link)]]
+                            )
+                            if link
+                            else None
+                        )
+                        await context.bot.copy_message(
+                            chat_id=update.effective_chat.id,
+                            from_chat_id=chat_id,
+                            message_id=msg_id,
+                            reply_markup=markup,
+                        )
+                    elif url:
+                        await update.message.reply_text(f"📄 {title}\n{url}")
+
+            specials = nav.data.get("year_specials") or await get_year_specials(subject_id, section_code, year_id)
+            return await update.message.reply_text(
+                "اختر النموذج:",
+                reply_markup=build_exam_menu(
+                    specials.get("has_exam_mid"), specials.get("has_exam_final")
+                ),
+            )
 
 
 
