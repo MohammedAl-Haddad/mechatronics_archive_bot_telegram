@@ -208,8 +208,10 @@ def generate_lecture_category_menu_keyboard(categories: list[str]) -> ReplyKeybo
 
 def build_years_menu(years: list[int]) -> ReplyKeyboardMarkup:
     """Build a simple menu for available years."""
-    labels = [str(y) for y in years]
+    labels = [str(y) for y in years if y]
     keyboard = _rows(labels, cols=2)
+    if not keyboard:
+        keyboard = []
     keyboard.append([BACK])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
@@ -219,20 +221,27 @@ def build_lectures_menu(lectures: list[dict]) -> ReplyKeyboardMarkup:
     labels: list[str] = []
     for item in lectures:
         no = item.get("lecture_no")
+        if not no:
+            continue
         title = item.get("title", "")
-        label = f"المحاضرة {arabic_ordinal(no)}"
+        label = f"المحاضرة {arabic_ordinal(int(no))}"
         if title:
             label += f": {title}"
         labels.append(label)
     keyboard = _rows(labels, cols=1)
+    if not keyboard:
+        keyboard = []
     keyboard.append([BACK])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
-def build_types_menu(types: list[str]) -> ReplyKeyboardMarkup:
+def build_types_menu(types: dict[str, object]) -> ReplyKeyboardMarkup:
     """Build menu for available content types."""
-    labels = [CATEGORY_TO_LABEL.get(t, t) for t in types]
+    labels = [CATEGORY_TO_LABEL.get(t, to_display_name(t)) for t in types.keys()]
+    labels = [lbl for lbl in labels if lbl]
     keyboard = _rows(labels, cols=2)
+    if not keyboard:
+        keyboard = []
     keyboard.append([BACK])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 

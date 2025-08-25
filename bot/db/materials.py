@@ -524,6 +524,44 @@ async def get_types_for_lecture(
     return result
 
 
+async def get_material(
+    subject_id: int,
+    section: str,
+    year: int,
+    lecture_no: int,
+    content_type: str,
+    lecturer_id: int | None = None,
+    only_approved: bool = True,
+) -> tuple[int, str | None, int | None, int | None] | None:
+    """Return a material row for a specific lecture content type."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        q = (
+            """
+            SELECT m.id, m.url, m.tg_storage_chat_id, m.tg_storage_msg_id
+            FROM materials m
+            JOIN years y ON y.id = m.year_id
+            JOIN ingestions i ON i.material_id = m.id
+            WHERE m.subject_id=? AND m.section=? AND y.name=? AND m.category=? AND m.title LIKE ?
+            """
+        )
+        params: list = [
+            subject_id,
+            section,
+            str(year),
+            content_type,
+            f"%{lecture_no}%",
+        ]
+        if lecturer_id is not None:
+            q += " AND m.lecturer_id=?"
+            params.append(lecturer_id)
+        if only_approved:
+            q += " AND i.status='approved'"
+        q += " ORDER BY m.id LIMIT 1"
+        cur = await db.execute(q, tuple(params))
+        row = await cur.fetchone()
+    return (row[0], row[1], row[2], row[3]) if row else None
+
+
 async def get_year_specials(
     subject_id: int, section: str, year: int, only_approved: bool = True
 ) -> dict:
